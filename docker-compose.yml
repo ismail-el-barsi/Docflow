@@ -1,0 +1,34 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend/storage:/app/storage
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - STORAGE_BASE_PATH=/app/storage
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    networks:
+      - docflow-net
+    # Permet au conteneur de communiquer avec Ollama sur l'hôte Mac/Windows
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=/ # Utilise le proxy Nginx configuré
+    depends_on:
+      - backend
+    networks:
+      - docflow-net
+
+networks:
+  docflow-net:
+    driver: bridge

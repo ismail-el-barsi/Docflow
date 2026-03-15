@@ -72,7 +72,7 @@ def test_classification_confidence_bounds():
     result = ClassificationResult(
         document_type=DocumentType.FACTURE,
         confidence=0.95,
-        model_used="llama3:8b"
+        model_used="gpt-oss:20b"
     )
     assert result.confidence == 0.95
 
@@ -82,7 +82,7 @@ def test_classification_confidence_out_of_bounds():
         ClassificationResult(
             document_type=DocumentType.FACTURE,
             confidence=1.5,
-            model_used="llama3:8b"
+            model_used="gpt-oss:20b"
         )
 
 

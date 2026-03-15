@@ -50,7 +50,7 @@ app.include_router(alerts.router)
 app.include_router(business.router)
 
 
-@app.get("/health", tags=["system"])
+@app.get("/api/health", tags=["system"])
 async def health_check():
     return {
         "status": "ok",

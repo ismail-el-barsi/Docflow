@@ -44,7 +44,7 @@ def classify_document(text: str) -> ClassificationResult:
 
 
 def _classify_with_ollama(text: str) -> ClassificationResult:
-    model = os.getenv("OLLAMA_MODEL", "llama3:8b")
+    model = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
     client = OllamaClient(host=base_url)

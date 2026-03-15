@@ -58,6 +58,20 @@ Le stockage (`datalake.py`) est organisé en trois zones physiques :
 - **Documentation API** : [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Mode Local** : Assurez-vous qu'Ollama est lancé si `LLM_PROVIDER=ollama`.
 
+## 🐳 Déploiement Docker
+
+Pour conteneuriser l'application et la rendre portable :
+
+```bash
+# Dans le dossier racine
+docker-compose up --build
+```
+
+- **Backend** : Contient Tesseract et Poppler pré-installés.
+- **Frontend** : Servi par Nginx sur le port **80**.
+- **Data Lake** : Persisté via un volume lié au dossier `./backend/storage`.
+- **Ollama** : Pour utiliser Ollama (Mac/Linux), le conteneur utilise `host.docker.internal` pour communiquer avec l'hôte.
+
 ## 🧪 Tests
 
 ```bash

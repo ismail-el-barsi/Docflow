@@ -59,7 +59,6 @@ export function UploadPage() {
       console.error('Upload error:', err);
     } finally {
       setUploading(false);
-      setTimeout(() => setUploadedFiles([]), 5000);
     }
   };
 
@@ -95,7 +94,7 @@ export function UploadPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce document à tous les niveaux ?')) return;
+    //if (!confirm('Êtes-vous sûr de vouloir supprimer ce document à tous les niveaux ?')) return;
     try {
       await deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
@@ -165,15 +164,33 @@ export function UploadPage() {
 
       {/* Upload feedback */}
       {uploadedFiles.length > 0 && (
-        <div className="card" style={{ marginBottom: '2rem', borderColor: 'rgba(0,212,170,0.3)', background: 'rgba(0,212,170,0.05)' }}>
-          <p className="section-title" style={{ color: 'var(--color-accent)' }}>✅ {uploadedFiles.length} fichier(s) uploadé(s)</p>
+        <div className="card animate-slide-up" style={{ 
+          marginBottom: '2rem', 
+          borderColor: 'var(--color-accent-glow)', 
+          background: 'rgba(0,212,170,0.03)',
+          position: 'relative'
+        }}>
+          <button 
+            className="modal-close" 
+            onClick={() => setUploadedFiles([])}
+            style={{ position: 'absolute', top: '0.75rem', right: '1rem', fontSize: '1.2rem' }}
+          >
+            &times;
+          </button>
+          
+          <p className="section-title" style={{ color: 'var(--color-accent)' }}>
+            ✨ {uploadedFiles.length} document(s) enregistré(s)
+          </p>
+          
           <div className="flex gap-1" style={{ flexWrap: 'wrap', marginTop: '0.5rem' }}>
             {uploadedFiles.map((f) => (
               <span key={f} className="badge badge-faible" style={{ textTransform: 'none' }}>{f}</span>
             ))}
           </div>
+          
           <p className="text-sm text-muted" style={{ marginTop: '0.75rem' }}>
-            ⚙️ Le pipeline OCR + LLM a démarré. Les documents passeront automatiquement par les zones Bronze, Silver et Gold.
+            Les fichiers sont maintenant en sécurité dans les différentes zones de traitement
+            (Bronze, Silver & Gold).
           </p>
         </div>
       )}

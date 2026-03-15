@@ -58,7 +58,7 @@ def extract_document_data(text: str) -> ExtractedData:
 
 
 def _call_ollama(text: str) -> str:
-    model = os.getenv("OLLAMA_MODEL", "llama3:8b")
+    model = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     client = OllamaClient(host=base_url)
     prompt = EXTRACTION_PROMPT.format(text=text[:4000])
