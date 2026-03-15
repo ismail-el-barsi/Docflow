@@ -155,7 +155,7 @@ export function UploadPage() {
             <h2>Déposez vos PDF ici</h2>
             <p>ou cliquez pour sélectionner — Formats acceptés : PDF uniquement</p>
             <div style={{ marginTop: '1.5rem' }}>
-              <button id="upload-btn" className="btn btn-primary" onClick={(e) => e.stopPropagation()}>
+              <button id="upload-btn" className="btn btn-primary">
                 📂 Choisir des fichiers
               </button>
             </div>
