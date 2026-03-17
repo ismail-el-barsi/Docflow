@@ -9,6 +9,12 @@ class AlertType(StrEnum):
     AMOUNT_INCONSISTENCY = "amount_inconsistency"
     DATE_INCOHERENCE = "date_incoherence"
     SIREN_FORMAT_INVALID = "siren_format_invalid"
+    SIREN_NOT_FOUND = "siren_not_found"
+    SIREN_COMPANY_CLOSED = "siren_company_closed"
+    SIRET_NOT_FOUND = "siret_not_found"
+    SIRET_CLOSED = "siret_closed"
+    COMPANY_NAME_MISMATCH = "company_name_mismatch"
+    COMPANY_ADDRESS_MISMATCH = "company_address_mismatch"
 
 
 class AlertSeverity(StrEnum):

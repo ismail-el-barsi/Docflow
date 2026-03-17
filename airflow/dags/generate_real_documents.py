@@ -4,11 +4,11 @@ import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-
-from reportlab.pdfgen import canvas
 import requests
+from airflow.operators.python import PythonOperator
+from reportlab.pdfgen import canvas
+
+from airflow import DAG
 
 default_args = {
     'owner': 'airflow',
@@ -157,6 +157,64 @@ def fetch_data_and_generate_pdfs(**kwargs):
         "Signature et Cachet du client:"
     ])
     print(f"Generated {filename_valid_quote.name}")
+
+    # 4. Generation: Valid SIRET but wrong legal name
+    filename_wrong_name_invoice = output_dir / f"facture_wrong_name_valid_siret_{query}_{siren}.pdf"
+    create_pdf(filename_wrong_name_invoice, [
+        "FACTURE N° F-2026-04-10145",
+        "--------------------------------------------------",
+        f"EMETTEUR:",
+        "Raison Sociale: ALPHA GLOBAL ADVISORY",
+        f"SIRET: {siret}",
+        f"Adresse: {adresse}",
+        "",
+        "CLIENT:",
+        "Nom: SARL DUPONT & CO",
+        "Adresse: 12 Rue de la Paix, 75001 PARIS",
+        "SIRET: 40483304800022",
+        "",
+        f"Date d'emission: {current_date}",
+        "Date d'echeance: " + (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'),
+        "--------------------------------------------------",
+        "DESCRIPTION DES PRESTATIONS:",
+        "- Audit interne                             : 2 000.00 EUR",
+        "- Rapport de synthese                       :   600.00 EUR",
+        "--------------------------------------------------",
+        "Total HT                                  : 2 600.00 EUR",
+        "TVA (20%)                                 :   520.00 EUR",
+        "--------------------------------------------------",
+        "TOTAL TTC A PAYER                         : 3 120.00 EUR"
+    ])
+    print(f"Generated {filename_wrong_name_invoice.name}")
+
+    # 5. Generation: Valid SIRET but wrong address
+    filename_wrong_address_invoice = output_dir / f"facture_wrong_address_valid_siret_{query}_{siren}.pdf"
+    create_pdf(filename_wrong_address_invoice, [
+        "FACTURE N° F-2026-04-10146",
+        "--------------------------------------------------",
+        f"EMETTEUR:",
+        f"Raison Sociale: {nom}",
+        f"SIRET: {siret}",
+        "Adresse: 99 AVENUE DES FAUSSES DONNEES 13001 MARSEILLE",
+        "",
+        "CLIENT:",
+        "Nom: SARL DUPONT & CO",
+        "Adresse: 12 Rue de la Paix, 75001 PARIS",
+        "SIRET: 40483304800022",
+        "",
+        f"Date d'emission: {current_date}",
+        "Date d'echeance: " + (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'),
+        "--------------------------------------------------",
+        "DESCRIPTION DES PRESTATIONS:",
+        "- Supervision projet                        : 1 800.00 EUR",
+        "- Support prioritaire                        :   700.00 EUR",
+        "--------------------------------------------------",
+        "Total HT                                  : 2 500.00 EUR",
+        "TVA (20%)                                 :   500.00 EUR",
+        "--------------------------------------------------",
+        "TOTAL TTC A PAYER                         : 3 000.00 EUR"
+    ])
+    print(f"Generated {filename_wrong_address_invoice.name}")
 
 generate_task = PythonOperator(
     task_id='fetch_and_generate',

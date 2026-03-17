@@ -86,7 +86,7 @@ async def _process_and_curate(document: UploadedDocument, file_path: Path) -> No
         process_document(document, file_path)
         curate_all_documents()
     except Exception as exc:
-        logger.error("Erreur pipeline pour '%s' : %s", document.original_filename, exc)
+        logger.exception("Erreur pipeline pour '%s' : %s", document.original_filename, exc)
 
 
 @router.get("/", response_model=list[DocumentResponse])
