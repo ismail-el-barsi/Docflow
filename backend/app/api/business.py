@@ -1,14 +1,12 @@
 """Routes API pour le CRM fournisseurs et le dashboard conformité."""
 import re
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-
 from app.api.auth import require_admin
-
 from app.schemas.datalake import GoldRecord
 from app.schemas.fraud import AlertSeverity
 from app.storage import datalake
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 router = APIRouter(tags=["business"])
 UNKNOWN_SIREN_KEY = "INCONNU"
