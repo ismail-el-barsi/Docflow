@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { uploadDocuments, listDocuments, getExtraction, deleteDocument } from '../api/client';
 import type { DocumentResponse, ExtractionResult } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 const STATUS_LABELS: Record<string, string> = {
   uploaded: '📦 Uploadé',
@@ -18,6 +19,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function UploadPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
@@ -215,6 +218,7 @@ export function UploadPage() {
             <thead>
               <tr>
                 <th>Fichier</th>
+                {isAdmin && <th>Uploadé par</th>}
                 <th>Type</th>
                 <th>Statut</th>
                 <th>Pipeline</th>
@@ -230,6 +234,11 @@ export function UploadPage() {
                       <span className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(doc.upload_at).toLocaleString('fr-FR')}</span>
                     </div>
                   </td>
+                  {isAdmin && (
+                    <td>
+                      <span className="text-sm text-muted">{doc.uploaded_by ?? '—'}</span>
+                    </td>
+                  )}
                   <td>
                     {doc.document_type ? (
                       <span className={`badge badge-${doc.document_type}`}>

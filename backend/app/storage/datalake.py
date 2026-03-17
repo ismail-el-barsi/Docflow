@@ -111,6 +111,29 @@ def load_bronze(document_id: UUID) -> BronzeRecord | None:
     return BronzeRecord(**data)
 
 
+def load_all_bronze() -> list[BronzeRecord]:
+    """Charge tous les enregistrements Bronze."""
+    # Priorité MongoDB
+    try:
+        cursor = get_collection("bronze").find()
+        return [BronzeRecord(**data) for data in cursor]
+    except Exception as exc:
+        logger.warning("MongoDB indisponible pour load_all_bronze : %s", exc)
+
+    # Fallback FileSystem
+    zone = _zone_path("bronze")
+    records = []
+    for path in zone.glob("*.json"):
+        if path.name == "manifest.json":
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            records.append(BronzeRecord(**data))
+        except Exception as exc:
+            logger.warning("Erreur chargement bronze '%s' : %s", path.name, exc)
+    return records
+
+
 # ─── Silver ──────────────────────────────────────────────────────────────────
 
 def save_silver(record: SilverRecord) -> None:
