@@ -6,12 +6,43 @@ import type {
   GoldRecord,
   InconsistencyAlert,
   SupplierSummary,
+  TokenResponse,
+  User,
 } from '../types';
 
 const api = axios.create({
   baseURL: (import.meta.env.VITE_API_URL as string) || (import.meta.env.PROD ? '' : 'http://localhost:8000'),
   headers: { 'Content-Type': 'application/json' },
 });
+
+// Inject JWT token on every request if available
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export async function register(email: string, password: string, full_name: string, role: 'user' | 'admin' = 'user'): Promise<User> {
+  const res = await api.post<User>('/api/auth/register', { email, password, full_name, role });
+  return res.data;
+}
+
+export async function login(email: string, password: string): Promise<TokenResponse> {
+  const params = new URLSearchParams();
+  params.append('username', email);
+  params.append('password', password);
+  const res = await api.post<TokenResponse>('/api/auth/login', params, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  return res.data;
+}
+
+export async function getMe(): Promise<User> {
+  const res = await api.get<User>('/api/auth/me');
+  return res.data;
+}
 
 // ─── Documents ───────────────────────────────────────────────────────────────
 

@@ -1,4 +1,13 @@
 services:
+  mongodb:
+    image: mongo:8
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - docflow-net
+
   backend:
     build:
       context: ./backend
@@ -10,11 +19,16 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - STORAGE_BASE_PATH=/app/storage
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-docflow}
+      - JWT_SECRET=${JWT_SECRET:-docflow_jwt_secret_2026}
     networks:
       - docflow-net
     # Permet au conteneur de communiquer avec Ollama sur l'hôte Mac/Windows
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      - mongodb
 
   frontend:
     build:
@@ -29,6 +43,28 @@ services:
     networks:
       - docflow-net
 
+  airflow:
+    image: apache/airflow:2.8.1
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - _AIRFLOW_WWW_USER_CREATE=true
+      - _AIRFLOW_WWW_USER_USERNAME=admin
+      - _AIRFLOW_WWW_USER_PASSWORD=admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - /var/run/docker.sock:/var/run/docker.sock
+    user: root
+    command: standalone
+    networks:
+      - docflow-net
+
 networks:
   docflow-net:
     driver: bridge
+
+volumes:
+  mongodb-data:

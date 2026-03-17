@@ -1,7 +1,8 @@
 """Routes API pour les alertes de fraude (zone Gold)."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.auth import require_admin
 from app.schemas.fraud import AlertSeverity, AlertType, InconsistencyAlert
 from app.storage import datalake
 
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 async def list_alerts(
     severity: AlertSeverity | None = None,
     alert_type: AlertType | None = None,
+    _: dict = Depends(require_admin),
 ) -> list[InconsistencyAlert]:
     """Liste toutes les alertes de fraude/incohérence, avec filtres optionnels."""
     gold_records = datalake.load_all_gold()

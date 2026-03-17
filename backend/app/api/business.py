@@ -1,6 +1,8 @@
 """Routes API pour le CRM fournisseurs et le dashboard conformité."""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from app.api.auth import require_admin
 
 from app.schemas.datalake import GoldRecord
 from app.schemas.fraud import AlertSeverity
@@ -21,7 +23,7 @@ class SupplierSummary(BaseModel):
 
 
 @router.get("/api/crm/suppliers", response_model=list[SupplierSummary])
-async def get_crm_suppliers() -> list[SupplierSummary]:
+async def get_crm_suppliers(_: dict = Depends(require_admin)) -> list[SupplierSummary]:
     """Données CRM : fournisseurs groupés par SIREN avec montants cumulés."""
     gold_records = datalake.load_all_gold()
     suppliers: dict[str, dict] = {}
@@ -63,7 +65,7 @@ async def get_crm_suppliers() -> list[SupplierSummary]:
 
 
 @router.get("/api/crm/suppliers/{siren}", response_model=list[GoldRecord])
-async def get_supplier_documents(siren: str) -> list[GoldRecord]:
+async def get_supplier_documents(siren: str, _: dict = Depends(require_admin)) -> list[GoldRecord]:
     """Récupère tous les documents Gold associés à un SIREN spécifique."""
     gold_records = datalake.load_all_gold()
     return [g for g in gold_records if g.extraction.siren == siren]
@@ -83,7 +85,7 @@ class ComplianceDashboard(BaseModel):
 
 
 @router.get("/api/compliance/dashboard", response_model=ComplianceDashboard)
-async def get_compliance_dashboard() -> ComplianceDashboard:
+async def get_compliance_dashboard(_: dict = Depends(require_admin)) -> ComplianceDashboard:
     """Dashboard conformité : métriques globales sur l'ensemble des documents."""
     gold_records = datalake.load_all_gold()
     total = len(gold_records)
