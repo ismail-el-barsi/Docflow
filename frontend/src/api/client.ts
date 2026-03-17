@@ -89,7 +89,8 @@ export async function getCrmSuppliers(): Promise<SupplierSummary[]> {
 }
 
 export async function getSupplierDocuments(siren: string): Promise<GoldRecord[]> {
-  const res = await api.get<GoldRecord[]>(`/api/crm/suppliers/${siren}`);
+  const supplierKey = encodeURIComponent(siren);
+  const res = await api.get<GoldRecord[]>(`/api/crm/suppliers/${supplierKey}`);
   return res.data;
 }
 

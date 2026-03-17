@@ -1,14 +1,15 @@
 """Routes API pour le CRM fournisseurs et le dashboard conformité."""
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+import re
 
 from app.api.auth import require_admin
-
 from app.schemas.datalake import GoldRecord
 from app.schemas.fraud import AlertSeverity
 from app.storage import datalake
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 router = APIRouter(tags=["business"])
+UNKNOWN_SIREN_KEY = "INCONNU"
 
 
 # ─── CRM ─────────────────────────────────────────────────────────────────────
@@ -30,7 +31,7 @@ async def get_crm_suppliers(_: dict = Depends(require_admin)) -> list[SupplierSu
 
     for gold in gold_records:
         ext = gold.extraction
-        siren = ext.siren or "INCONNU"
+        siren = ext.siren or UNKNOWN_SIREN_KEY
         nom = ext.emetteur_nom or "Émetteur inconnu"
 
         if siren not in suppliers:
@@ -64,11 +65,28 @@ async def get_crm_suppliers(_: dict = Depends(require_admin)) -> list[SupplierSu
     ]
 
 
+def _normalize_supplier_siren_filter(siren: str) -> str:
+    normalized = (siren or "").strip()
+    if not normalized or normalized.upper() == UNKNOWN_SIREN_KEY:
+        return UNKNOWN_SIREN_KEY
+
+    digits_only = re.sub(r"\D", "", normalized)
+    if len(digits_only) == 9:
+        return digits_only
+
+    return normalized
+
+
 @router.get("/api/crm/suppliers/{siren}", response_model=list[GoldRecord])
 async def get_supplier_documents(siren: str, _: dict = Depends(require_admin)) -> list[GoldRecord]:
     """Récupère tous les documents Gold associés à un SIREN spécifique."""
     gold_records = datalake.load_all_gold()
-    return [g for g in gold_records if g.extraction.siren == siren]
+    normalized_siren = _normalize_supplier_siren_filter(siren)
+
+    if normalized_siren == UNKNOWN_SIREN_KEY:
+        return [g for g in gold_records if not g.extraction.siren]
+
+    return [g for g in gold_records if g.extraction.siren == normalized_siren]
 
 
 # ─── Conformité ───────────────────────────────────────────────────────────────

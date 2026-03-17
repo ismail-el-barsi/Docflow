@@ -1,13 +1,12 @@
 """Service LLM : classification de documents (Ollama ou Groq)."""
-import json
 import logging
 import os
 
-from groq import Groq
-from ollama import Client as OllamaClient
-
 from app.schemas.classification import ClassificationResult
 from app.schemas.document import DocumentType
+from app.services.llm_json import extract_json_object, preview_llm_output
+from groq import Groq
+from ollama import Client as OllamaClient
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +52,8 @@ def _classify_with_ollama(text: str) -> ClassificationResult:
     response = client.chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
+        format="json",
+        options={"temperature": 0},
     )
     raw = response.message.content
     return _parse_classification_response(raw, model_used=f"ollama/{model}")
@@ -76,8 +77,10 @@ def _classify_with_groq(text: str) -> ClassificationResult:
 
 def _parse_classification_response(raw: str, model_used: str) -> ClassificationResult:
     try:
-        # Tenter de parser le JSON directement
-        data = json.loads(raw)
+        data = extract_json_object(raw)
+        if not data:
+            raise ValueError("Aucun objet JSON valide trouvé dans la réponse")
+
         doc_type_str = data.get("document_type", "autre").lower()
         try:
             doc_type = DocumentType(doc_type_str)
@@ -94,8 +97,12 @@ def _parse_classification_response(raw: str, model_used: str) -> ClassificationR
             model_used=model_used,
             raw_response=raw,
         )
-    except (json.JSONDecodeError, KeyError, ValueError) as exc:
-        logger.error("Impossible de parser la réponse LLM classification : %s", exc)
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.error(
+            "Impossible de parser la réponse LLM classification : %s | extrait=%s",
+            exc,
+            preview_llm_output(raw),
+        )
         return ClassificationResult(
             document_type=DocumentType.AUTRE,
             confidence=0.0,

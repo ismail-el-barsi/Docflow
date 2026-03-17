@@ -1,14 +1,13 @@
 """Service d'extraction : extrait les informations clés via LLM."""
-import json
 import logging
 import os
 import re
 from decimal import Decimal
 
+from app.schemas.extraction import ExtractedData, MonetaryAmount
+from app.services.llm_json import extract_json_object, preview_llm_output
 from groq import Groq
 from ollama import Client as OllamaClient
-
-from app.schemas.extraction import ExtractedData, MonetaryAmount
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +64,8 @@ def _call_ollama(text: str) -> str:
     response = client.chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
+        format="json",
+        options={"temperature": 0},
     )
     return response.message.content
 
@@ -102,7 +103,9 @@ def _clean_siren(value: str | None) -> str | None:
 
 def _parse_extraction_response(raw: str, original_text: str) -> ExtractedData:
     try:
-        data = json.loads(raw)
+        data = extract_json_object(raw)
+        if not data:
+            raise ValueError("Aucun objet JSON valide trouvé dans la réponse")
 
         siren_raw = _clean_siren(data.get("siren"))
         siret_raw = _clean_siren(data.get("siret"))
@@ -135,6 +138,10 @@ def _parse_extraction_response(raw: str, original_text: str) -> ExtractedData:
             raw_text=original_text,
         )
 
-    except (json.JSONDecodeError, KeyError, ValueError) as exc:
-        logger.error("Impossible de parser la réponse LLM extraction : %s", exc)
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.error(
+            "Impossible de parser la réponse LLM extraction : %s | extrait=%s",
+            exc,
+            preview_llm_output(raw),
+        )
         return ExtractedData(raw_text=original_text)
