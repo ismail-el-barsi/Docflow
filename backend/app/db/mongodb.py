@@ -1,4 +1,4 @@
-"""MongoDB connection management for DocFlow."""
+"""MongoDB connection management for DocFlow ."""
 
 import logging
 import os
