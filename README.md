@@ -47,36 +47,64 @@ Le stockage (`datalake.py`) est organisé en trois zones physiques :
 - **LLM Switching** : Support dynamique de **Ollama** (Local) et **Groq** (API haute performance) via la variable `LLM_PROVIDER`.
 - **Qualité** : Linting strict par Ruff et 24+ tests unitaires/intégration.
 
-## 🏁 Lancement Rapide
+## 🏁 Installation et Lancement
+
+Le projet peut être lancé de deux manières. **L'utilisation de Docker est fortement recommandée** car elle inclut nativement toutes les dépendances système complexes (OCR, PDF processing).
+
+### Option A : Docker (Recommandé) 🐳
+
+Cette méthode installe automatiquement **Tesseract OCR** et **Poppler** à l'intérieur des conteneurs.
 
 ```bash
 # Lancer tout le projet (Backend + Frontend)
-./start.sh
-```
-
-- **Accès Frontend** : [http://localhost:5173](http://localhost:5173)
-- **Documentation API** : [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Mode Local** : Assurez-vous qu'Ollama est lancé si `LLM_PROVIDER=ollama`.
-
-## 🐳 Déploiement Docker
-
-Pour conteneuriser l'application et la rendre portable :
-
-```bash
-# Dans le dossier racine
 docker-compose up --build
 ```
 
-- **Backend** : Contient Tesseract et Poppler pré-installés.
-- **Frontend** : Servi par Nginx sur le port **80**.
-- **Data Lake** : Persisté via un volume lié au dossier `./backend/storage`.
-- **Ollama** : Pour utiliser Ollama (Mac/Linux), le conteneur utilise `host.docker.internal` pour communiquer avec l'hôte.
+- **Frontend** : [http://localhost](http://localhost) (Port 80)
+- **API Docs** : [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Note** : Le dossier `backend/storage` est monté en volume pour conserver vos documents.
 
-## 🧪 Tests
+### Option B : Installation Locale (Développement) 🛠️
+
+Si vous souhaitez lancer le projet sans Docker, vous devez installer manuellement les dépendances système pour l'OCR :
+
+1.  **Dépendances Système (Obligatoires pour l'OCR, commande à vérifier)** :
+    -   **macOS** : `brew install poppler tesseract tesseract-lang`
+    -   **Ubuntu/Debian** : `sudo apt install poppler-utils tesseract-ocr tesseract-ocr-fra`
+    -   **Windows** : `choco install poppler tesseract`
+
+2.  **Lancement des services** :
+    ```bash
+    # Utilise uv pour le python et npm pour le front
+    ./start.sh
+    ```
+
+- **Frontend** : [http://localhost:5173](http://localhost:5173)
+- **Backend** : [http://localhost:8000](http://localhost:8000)
+
+---
+
+## ⚙️ Configuration (Variables d'environnement)
+
+Créez un fichier `backend/.env` (basé sur `.env.example`) :
+
+| Variable | Description | Défaut |
+| :--- | :--- | :--- |
+| `LLM_PROVIDER` | `ollama` ou `groq` | `ollama` |
+| `GROQ_API_KEY` | Requis si provider = `groq` | - |
+| `OLLAMA_BASE_URL` | URL de votre instance Ollama | `http://host.docker.internal:11434` |
+
+---
+
+## 🧪 Tests et Qualité
 
 ```bash
 cd backend
+# Lancer les tests
 uv run pytest
+
+# Linting
+uvx ruff check .
 ```
 
 ## MongoDB

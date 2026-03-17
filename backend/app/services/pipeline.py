@@ -1,4 +1,5 @@
 """Pipeline de traitement d'un document : OCR → Classification → Extraction → Data Lake."""
+
 import logging
 from pathlib import Path
 
@@ -22,6 +23,10 @@ def process_document(document: UploadedDocument, file_path: Path) -> SilverRecor
     # OCR
     logger.info("Démarrage OCR : %s", document.original_filename)
     ocr_result = extract_text_from_pdf_path(file_path)
+
+    if not ocr_result.success:
+        logger.error("Échec OCR pour %s : %s", document.original_filename, ocr_result.error)
+        # On continue avec un texte vide (le LLM risque de ne rien extraire)
 
     # Classification
     logger.info("Classification LLM : %s", document.original_filename)
