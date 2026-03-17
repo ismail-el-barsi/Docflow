@@ -78,3 +78,9 @@ docker-compose up --build
 cd backend
 uv run pytest
 ```
+
+## MongoDB
+
+- Variables d'environnement : `MONGODB_URI` et `MONGODB_DB_NAME`
+- Local : `MONGODB_URI=mongodb://localhost:27017`
+- Docker Compose : un service `mongodb` et un volume `mongodb-data` sont ajoutes
