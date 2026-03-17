@@ -29,6 +29,25 @@ services:
     networks:
       - docflow-net
 
+  airflow:
+    image: apache/airflow:2.8.1
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - _AIRFLOW_WWW_USER_CREATE=true
+      - _AIRFLOW_WWW_USER_USERNAME=admin
+      - _AIRFLOW_WWW_USER_PASSWORD=admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - /var/run/docker.sock:/var/run/docker.sock
+    user: root
+    command: standalone
+    networks:
+      - docflow-net
+
 networks:
   docflow-net:
     driver: bridge
