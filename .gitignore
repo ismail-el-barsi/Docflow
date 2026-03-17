@@ -31,6 +31,7 @@ PLAN.md
 SPECS.md
 storage/
 backend/storage/
+!backend/app/storage/
 frontend/storage/
 
 # Logs
