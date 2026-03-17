@@ -8,19 +8,23 @@ services:
     networks:
       - docflow-net
 
+  
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:    
+      - ./backend/.env
     volumes:
       - ./backend/storage:/app/storage
-    environment:
-      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      - STORAGE_BASE_PATH=/app/storage
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017}
-      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-docflow}
+    # environment:
+    #   - LLM_PROVIDER=${LLM_PROVIDER:-groq}
+    #   - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      # - STORAGE_BASE_PATH=/app/storage
+    #   - GROQ_API_KEY=${GROQ_API_KEY}
+    #   - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017}
+    #   - MONGODB_DB_NAME=${MONGODB_DB_NAME:-docflow}
     networks:
       - docflow-net
     # Permet au conteneur de communiquer avec Ollama sur l'hôte Mac/Windows

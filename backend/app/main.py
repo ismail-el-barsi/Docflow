@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Connexion MongoDB echouee au demarrage : %s", exc)
 
-    provider = os.getenv("LLM_PROVIDER", "ollama").lower()
+    provider = os.getenv("LLM_PROVIDER", "groq").lower()
     logger.info("LLM Provider configure : %s", provider)
     yield
     disconnect_from_mongo()
@@ -61,7 +61,7 @@ app.include_router(business.router)
 async def health_check():
     return {
         "status": "ok",
-        "llm_provider": os.getenv("LLM_PROVIDER", "ollama"),
+        "llm_provider": os.getenv("LLM_PROVIDER", "groq"),
         "storage": os.getenv("STORAGE_BASE_PATH", "./storage"),
         "mongodb": mongo_health(),
     }

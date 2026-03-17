@@ -47,7 +47,7 @@ Important :
 
 def extract_document_data(text: str) -> ExtractedData:
     """Extrait les informations clés d'un document via le LLM configuré."""
-    provider = os.getenv("LLM_PROVIDER", "ollama").lower()
+    provider = os.getenv("LLM_PROVIDER", "groq").lower()
 
     if provider == "groq":
         raw = _call_groq(text)

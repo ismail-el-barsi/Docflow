@@ -36,7 +36,7 @@ Règles de classification :
 
 def classify_document(text: str) -> ClassificationResult:
     """Classifie un document via le LLM configuré (Ollama ou Groq)."""
-    provider = os.getenv("LLM_PROVIDER", "ollama").lower()
+    provider = os.getenv("LLM_PROVIDER", "groq").lower()
 
     if provider == "groq":
         return _classify_with_groq(text)
