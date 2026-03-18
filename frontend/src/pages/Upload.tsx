@@ -126,12 +126,11 @@ export function UploadPage() {
       {/* Drop Zone */}
       <div
         id="upload-dropzone"
-        className={`drop-zone ${dragging ? 'dragging' : ''}`}
+        className={`drop-zone mb-4 ${dragging ? 'dragging' : ''}`}
         onClick={() => inputRef.current?.click()}
         onDrop={onDrop}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
-        style={{ marginBottom: '2rem' }}
       >
         <input
           ref={inputRef}
@@ -147,7 +146,7 @@ export function UploadPage() {
             <span className="drop-zone-icon">⏳</span>
             <h2 className="loading-text">Upload en cours…</h2>
             <p>Vos fichiers sont en cours de transfert vers la zone Bronze</p>
-            <div className="progress-bar" style={{ maxWidth: 300, margin: '1rem auto 0' }}>
+            <div className="progress-bar center">
               <div className="progress-fill" style={{ width: '100%' }} />
             </div>
           </>
@@ -156,7 +155,7 @@ export function UploadPage() {
             <span className="drop-zone-icon">☁️</span>
             <h2>Déposez vos PDF ici</h2>
             <p>ou cliquez pour sélectionner — Formats acceptés : PDF uniquement</p>
-            <div style={{ marginTop: '1.5rem' }}>
+            <div className="mt-5">
               <button id="upload-btn" className="btn btn-primary">
                 📂 Choisir des fichiers
               </button>
@@ -167,31 +166,25 @@ export function UploadPage() {
 
       {/* Upload feedback */}
       {uploadedFiles.length > 0 && (
-        <div className="card animate-slide-up" style={{ 
-          marginBottom: '2rem', 
-          borderColor: 'var(--color-accent-glow)', 
-          background: 'rgba(0,212,170,0.03)',
-          position: 'relative'
-        }}>
+        <div className="card card-success animate-slide-up mb-4">
           <button 
-            className="modal-close" 
+            className="modal-close card-dismiss" 
             onClick={() => setUploadedFiles([])}
-            style={{ position: 'absolute', top: '0.75rem', right: '1rem', fontSize: '1.2rem' }}
           >
             &times;
           </button>
           
-          <p className="section-title" style={{ color: 'var(--color-accent)' }}>
+          <p className="section-title text-accent">
             ✨ {uploadedFiles.length} document(s) enregistré(s)
           </p>
           
-          <div className="flex gap-1" style={{ flexWrap: 'wrap', marginTop: '0.5rem' }}>
+          <div className="flex flex-wrap gap-1 mt-2">
             {uploadedFiles.map((f) => (
-              <span key={f} className="badge badge-faible" style={{ textTransform: 'none' }}>{f}</span>
+              <span key={f} className="badge badge-faible badge-normal">{f}</span>
             ))}
           </div>
           
-          <p className="text-sm text-muted" style={{ marginTop: '0.75rem' }}>
+          <p className="text-sm text-muted mt-2">
             Les fichiers sont maintenant en sécurité dans les différentes zones de traitement
             (Bronze, Silver & Gold).
           </p>
@@ -199,10 +192,10 @@ export function UploadPage() {
       )}
 
       {/* Document list */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+      <div className="toolbar justify-between mb-2">
         <p className="section-title">📋 Documents traités ({documents.length})</p>
         <button id="refresh-btn" className="btn btn-ghost" onClick={refreshDocuments} disabled={loading}>
-          {loading ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '🔄'} Rafraîchir
+          {loading ? <span className="spinner spinner-sm" /> : '🔄'} Rafraîchir
         </button>
       </div>
 
@@ -230,8 +223,8 @@ export function UploadPage() {
                 <tr key={doc.id}>
                   <td>
                     <div className="flex-col">
-                      <span style={{ fontWeight: 600 }}>{doc.original_filename}</span>
-                      <span className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(doc.upload_at).toLocaleString('fr-FR')}</span>
+                      <span className="font-semibold">{doc.original_filename}</span>
+                      <span className="text-muted text-xs">{new Date(doc.upload_at).toLocaleString('fr-FR')}</span>
                     </div>
                   </td>
                   {isAdmin && (
@@ -265,16 +258,14 @@ export function UploadPage() {
                   <td>
                     <div className="flex gap-1">
                       <button 
-                        className="btn btn-ghost" 
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                        className="btn btn-ghost btn-xs" 
                         disabled={!['extracted', 'curated'].includes(doc.status)}
                         onClick={() => openDetails(doc)}
                       >
                         👁️ Voir
                       </button>
                       <button 
-                        className="btn btn-ghost" 
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--color-danger)' }}
+                        className="btn btn-ghost btn-xs btn-danger" 
                         onClick={() => handleDelete(doc.id)}
                       >
                         🗑️
@@ -297,7 +288,7 @@ export function UploadPage() {
                 <span className={`badge badge-${selectedDoc.document_type ?? 'autre'}`}>
                   {TYPE_LABELS[selectedDoc.document_type ?? 'autre']}
                 </span>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{selectedDoc.original_filename}</h2>
+                <h2 className="text-lg font-bold">{selectedDoc.original_filename}</h2>
               </div>
               <button className="modal-close" onClick={closeDetails}>&times;</button>
             </div>
@@ -324,55 +315,46 @@ export function UploadPage() {
                   <div className="grid-2">
                     <div className="card-glass">
                       <p className="text-sm text-muted mb-1">ÉMETTEUR</p>
-                      <p style={{ fontWeight: 700 }}>{extraction.emetteur_nom || 'Inconnu'}</p>
+                      <p className="font-bold">{extraction.emetteur_nom || 'Inconnu'}</p>
                       <p className="text-sm text-muted">{extraction.emetteur_adresse || '—'}</p>
                       <div className="mt-2 flex items-center gap-1">
                         <span className="text-sm">SIREN :</span>
-                        <code className="font-mono text-sm" style={{ color: 'var(--color-primary)' }}>{extraction.siren || '—'}</code>
+                        <code className="code-inline">{extraction.siren || '—'}</code>
                       </div>
                     </div>
                     <div className="card-glass">
                       <p className="text-sm text-muted mb-1">DESTINATAIRE</p>
-                      <p style={{ fontWeight: 700 }}>{extraction.destinataire_nom || 'Inconnu'}</p>
+                      <p className="font-bold">{extraction.destinataire_nom || 'Inconnu'}</p>
                       <p className="text-sm text-muted">{extraction.destinataire_adresse || '—'}</p>
                       <div className="mt-2 flex items-center gap-1">
                         <span className="text-sm">SIRET :</span>
-                        <code className="font-mono text-sm">{extraction.siret || '—'}</code>
+                        <code className="code-inline">{extraction.siret || '—'}</code>
                       </div>
                     </div>
                   </div>
 
-                  <div className="stat-grid" style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+                  <div className="stat-grid mt-5 mb-3">
                     <div className="stat-card">
                       <span className="stat-label">Total TTC</span>
-                      <span className="stat-value" style={{ fontSize: '1.5rem' }}>{extraction.montants.ttc?.toLocaleString('fr-FR')} {extraction.montants.currency}</span>
+                      <span className="stat-value text-2xl">{extraction.montants.ttc?.toLocaleString('fr-FR')} {extraction.montants.currency}</span>
                     </div>
                     <div className="stat-card">
                       <span className="stat-label">HT / TVA</span>
-                      <span className="stat-value" style={{ fontSize: '1rem' }}>{extraction.montants.ht?.toLocaleString('fr-FR')} / {extraction.montants.tva?.toLocaleString('fr-FR')}</span>
+                      <span className="stat-value subtle text-base">{extraction.montants.ht?.toLocaleString('fr-FR')} / {extraction.montants.tva?.toLocaleString('fr-FR')}</span>
                     </div>
                     <div className="stat-card">
                       <span className="stat-label">Date émission</span>
-                      <span className="stat-value" style={{ fontSize: '1.2rem' }}>{extraction.date_emission || '—'}</span>
+                      <span className="stat-value subtle text-lg">{extraction.date_emission || '—'}</span>
                     </div>
                     <div className="stat-card">
                       <span className="stat-label">N° Document</span>
-                      <span className="stat-value" style={{ fontSize: '1.2rem' }}>{extraction.numero_document || '—'}</span>
+                      <span className="stat-value subtle text-lg">{extraction.numero_document || '—'}</span>
                     </div>
                   </div>
 
                   <div>
                     <p className="text-sm text-muted mb-1">TEXTE BRUT (OCR)</p>
-                    <pre style={{ 
-                      fontSize: '0.75rem', 
-                      background: 'rgba(0,0,0,0.2)', 
-                      padding: '1rem', 
-                      borderRadius: 'var(--radius-sm)',
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      whiteSpace: 'pre-wrap',
-                      fontFamily: 'monospace'
-                    }}>
+                    <pre className="code-block">
                       {extraction.raw_text}
                     </pre>
                   </div>
@@ -381,7 +363,7 @@ export function UploadPage() {
                 <p>Impossible de charger les données.</p>
               )}
             </div>
-            <div className="modal-header" style={{ top: 'auto', bottom: 0, borderTop: '1px solid var(--color-border)', borderBottom: 'none' }}>
+            <div className="modal-footer">
               <button className="btn btn-ghost w-full" onClick={closeDetails}>Fermer</button>
             </div>
           </div>

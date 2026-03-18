@@ -27,6 +27,7 @@ function ComplianceRing({ value }: { value: number }) {
       <svg viewBox="0 0 120 120" width="120" height="120">
         <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="10" />
         <circle
+          className="compliance-ring-progress"
           cx="60" cy="60" r={r}
           fill="none"
           stroke={color}
@@ -34,7 +35,6 @@ function ComplianceRing({ value }: { value: number }) {
           strokeDasharray={circ}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1s ease, stroke 0.5s ease' }}
         />
       </svg>
       <div className="compliance-ring-text">
@@ -68,7 +68,7 @@ export function CompliancePage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '4rem', justifyContent: 'center' }}>
+      <div className="loading-row">
         <div className="spinner" />
         <span className="loading-text">Chargement du dashboard…</span>
       </div>
@@ -84,10 +84,10 @@ export function CompliancePage() {
 
       {/* KPI + Ring */}
       {dashboard && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flexWrap: 'wrap' }}>
+        <div className="card mb-3">
+          <div className="toolbar wrap gap-4">
             <ComplianceRing value={dashboard.taux_conformite} />
-            <div className="stat-grid" style={{ flex: 1, margin: 0 }}>
+            <div className="stat-grid compact flex-1">
               <div className="stat-card">
                 <span className="stat-icon">📄</span>
                 <span className="stat-value">{dashboard.total_documents}</span>
@@ -95,35 +95,35 @@ export function CompliancePage() {
               </div>
               <div className="stat-card">
                 <span className="stat-icon">✅</span>
-                <span className="stat-value" style={{ color: 'var(--color-accent)' }}>
+                <span className="stat-value text-accent">
                   {dashboard.documents_conformes}
                 </span>
                 <span className="stat-label">Conformes</span>
               </div>
               <div className="stat-card">
                 <span className="stat-icon">❌</span>
-                <span className="stat-value" style={{ color: 'var(--color-danger)' }}>
+                <span className="stat-value text-danger">
                   {dashboard.documents_non_conformes}
                 </span>
                 <span className="stat-label">Non conformes</span>
               </div>
               <div className="stat-card">
                 <span className="stat-icon">🔴</span>
-                <span className="stat-value" style={{ color: 'var(--color-danger)' }}>
+                <span className="stat-value text-danger">
                   {dashboard.alertes_critiques}
                 </span>
                 <span className="stat-label">Critiques</span>
               </div>
               <div className="stat-card">
                 <span className="stat-icon">🟠</span>
-                <span className="stat-value" style={{ color: 'var(--color-warning)' }}>
+                <span className="stat-value text-warning">
                   {dashboard.alertes_hautes}
                 </span>
                 <span className="stat-label">Hautes</span>
               </div>
               <div className="stat-card">
                 <span className="stat-icon">🟡</span>
-                <span className="stat-value" style={{ color: 'var(--color-info)' }}>
+                <span className="stat-value text-info">
                   {dashboard.alertes_moyennes}
                 </span>
                 <span className="stat-label">Moyennes</span>
@@ -134,15 +134,14 @@ export function CompliancePage() {
       )}
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <span className="section-title" style={{ marginBottom: 0 }}>Filtrer :</span>
+      <div className="toolbar wrap tight mb-3">
+        <span className="section-title mb-0">Filtrer :</span>
         {(['all', 'critique', 'haute', 'moyenne', 'faible'] as const).map((sev) => (
           <button
             key={sev}
             id={`filter-${sev}`}
-            className={`btn ${filterSeverity === sev ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn btn-sm ${filterSeverity === sev ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setFilterSeverity(sev)}
-            style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem' }}
           >
             {sev === 'all' ? 'Toutes' : (
               <>{SEVERITY_ICONS[sev as AlertSeverity]} {sev.charAt(0).toUpperCase() + sev.slice(1)}</>
@@ -166,7 +165,7 @@ export function CompliancePage() {
                 <span className={`badge badge-${alert.severity}`}>
                   {SEVERITY_ICONS[alert.severity]} {alert.severity}
                 </span>
-                <span className="badge badge-autre" style={{ textTransform: 'none' }}>
+                <span className="badge badge-autre badge-normal">
                   {ALERT_TYPE_LABELS[alert.alert_type]}
                 </span>
                 <span className="section-subtitle">
@@ -178,7 +177,7 @@ export function CompliancePage() {
 
               {alert.field_in_conflict && (
                 <p className="alert-meta">
-                  Champ : <code className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--color-primary)' }}>{alert.field_in_conflict}</code>
+                  Champ : <code className="code-inline">{alert.field_in_conflict}</code>
                   {alert.value_a && <> — Valeur A : <strong>{alert.value_a}</strong></>}
                   {alert.value_b && <> vs Valeur B : <strong>{alert.value_b}</strong></>}
                 </p>

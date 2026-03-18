@@ -41,7 +41,7 @@ export function Navbar() {
           <span className="user-badge">
             {isAdmin ? '👑' : '👤'} {user.full_name}
           </span>
-          <button className="btn-logout" onClick={logout}>
+          <button className="btn btn-ghost btn-xs btn-danger" onClick={logout}>
             Déconnexion
           </button>
         </div>
