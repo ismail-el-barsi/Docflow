@@ -1,20 +1,20 @@
 C’est une façon d’organiser les données par niveau de transformation. On appelle ça une architecture `Medallion`.
 
-Dans votre projet :
+Dans ce projet :
 
 - `Bronze`
   - sert à garder la donnée brute
-  - chez vous : le PDF uploadé + les métadonnées minimales
+  - dans ce projet : le PDF uploadé + les métadonnées minimales
   - objectif : conserver la source d’origine sans modification
 
 - `Silver`
   - sert à stocker la donnée nettoyée / structurée
-  - chez vous : OCR + classification + extraction des champs utiles
+  - dans ce projet : OCR + classification + extraction des champs utiles
   - objectif : avoir une version exploitable techniquement
 
 - `Gold`
   - sert à stocker la donnée enrichie pour le métier
-  - chez vous : extraction + alertes de fraude + statut de conformité
+  - dans ce projet : extraction + alertes de fraude + statut de conformité
   - objectif : alimenter directement le dashboard, le CRM, les vues métier
 
 Pourquoi c’est utile :
@@ -22,9 +22,9 @@ Pourquoi c’est utile :
 - on peut rejouer un traitement sans perdre la source
 - on peut débugger plus facilement
 - on évite de mélanger données techniques et données métier
-- c’est plus propre pour expliquer le pipeline en soutenance
+- c’est plus propre pour expliquer le pipeline
 
-Dans votre flow :
+Dans ce flow :
 1. utilisateur upload un PDF
 2. il va en `bronze`
 3. le pipeline fait OCR/classification/extraction
