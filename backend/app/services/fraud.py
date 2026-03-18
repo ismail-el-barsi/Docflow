@@ -4,6 +4,7 @@ import os
 import re
 import unicodedata
 import uuid
+from datetime import date
 from decimal import Decimal
 
 import httpx
@@ -15,6 +16,12 @@ logger = logging.getLogger(__name__)
 
 # Tolérance pour la comparaison de montants (5%)
 AMOUNT_TOLERANCE_RATIO = Decimal("0.05")
+
+SIREN_REGEX = re.compile(r"^\d{9}$")
+SIRET_REGEX = re.compile(r"^\d{14}$")
+NON_ALNUM_REGEX = re.compile(r"[^\w\s]")
+MULTISPACE_REGEX = re.compile(r"\s+")
+LEGAL_SUFFIX_REGEX = re.compile(r"\b(sas|sasu|sa|eurl|sarl|snc|sci|sasu|ei)\b", re.IGNORECASE)
 
 
 def _normalize_text(value: str | None) -> str:
@@ -141,40 +148,55 @@ def detect_inconsistencies(records: list[SilverRecord]) -> list[InconsistencyAle
     alerts.extend(_check_amount_inconsistency(records))
     alerts.extend(_check_date_incoherence(records))
     alerts.extend(_check_insee_registry(records))
+    alerts.extend(_check_attestation_expiry(records))
 
     logger.info("%d alertes détectées sur %d documents", len(alerts), len(records))
     return alerts
 
 
-# ─── Règle 1 : Format SIREN invalide ──────────────────────────────────────────
+def _normalize_name(value: str | None) -> str:
+    if not value:
+        return ""
+    normalized = value.strip().lower()
+    normalized = NON_ALNUM_REGEX.sub(" ", normalized)
+    normalized = LEGAL_SUFFIX_REGEX.sub("", normalized)
+    normalized = MULTISPACE_REGEX.sub(" ", normalized).strip()
+    return normalized
+
+
+def _group_by_emetteur(records: list[SilverRecord]) -> dict[str, list[SilverRecord]]:
+    by_emetteur: dict[str, list[SilverRecord]] = {}
+    for rec in records:
+        nom = _normalize_name(rec.extraction.emetteur_nom)
+        if nom:
+            by_emetteur.setdefault(nom, []).append(rec)
+    return by_emetteur
+
+
+def _same_business_context(a: SilverRecord, b: SilverRecord) -> bool:
+    """
+    Heuristique légère pour réduire les faux positifs :
+    on compare de préférence les docs ayant le même destinataire si disponible.
+    """
+    dest_a = _normalize_name(a.extraction.destinataire_nom)
+    dest_b = _normalize_name(b.extraction.destinataire_nom)
+
+    if dest_a and dest_b:
+        return dest_a == dest_b
+    return True
+
+
+def _is_iso_date(value: str | None) -> bool:
+    return bool(value and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value))
+
+
+# ─── Règle 1 : Format SIREN invalide ─────────────────────────────────────────
 
 def _check_siren_format(records: list[SilverRecord]) -> list[InconsistencyAlert]:
     alerts = []
     for rec in records:
         ext = rec.extraction
-
-        if ext.siren is not None:
-            clean_siren = re.sub(r"\D", "", ext.siren)
-            if not re.fullmatch(r"\d{9}", clean_siren):
-                alerts.append(InconsistencyAlert(
-                    id=str(uuid.uuid4()),
-                    alert_type=AlertType.SIREN_FORMAT_INVALID,
-                    severity=AlertSeverity.HAUTE,
-                    description=f"SIREN '{clean_siren}' invalide dans '{rec.original_filename}'",
-                    document_ids=[rec.document_id],
-                    field_in_conflict="siren",
-                    value_a=clean_siren,
-                    suggestion="Vérifier le numéro SIREN du document source.",
-                ))
-            continue
-
-        raw_siren_digits, raw_siren_value = _extract_declared_siren(ext.raw_text)
-        if raw_siren_digits and not re.fullmatch(r"\d{9}", raw_siren_digits):
-            logger.warning(
-                "SIREN brut invalide détecté dans %s : %s",
-                rec.original_filename,
-                raw_siren_value,
-            )
+        if ext.siren is not None and not SIREN_REGEX.fullmatch(ext.siren):
             alerts.append(InconsistencyAlert(
                 id=str(uuid.uuid4()),
                 alert_type=AlertType.SIREN_FORMAT_INVALID,
@@ -193,39 +215,72 @@ def _check_siren_format(records: list[SilverRecord]) -> list[InconsistencyAlert]
 # ─── Règle 2 : SIRET incohérent entre documents ───────────────────────────────
 
 def _check_siret_mismatch(records: list[SilverRecord]) -> list[InconsistencyAlert]:
-    """Détecte si deux documents avec le même émetteur ont des SIRET différents."""
+    """
+    Détecte si deux documents avec le même émetteur ont des SIRET différents.
+    Priorité métier : comparer les couples facture / attestation quand ils existent.
+    """
     alerts = []
-    # Grouper par nom d'émetteur (normalisé)
-    by_emetteur: dict[str, list[SilverRecord]] = {}
-    for rec in records:
-        nom = (rec.extraction.emetteur_nom or "").strip().lower()
-        if nom:
-            by_emetteur.setdefault(nom, []).append(rec)
+    by_emetteur = _group_by_emetteur(records)
 
     for emetteur, group in by_emetteur.items():
-        sirets = {
-            rec.document_id: rec.extraction.siret
-            for rec in group
-            if rec.extraction.siret
-        }
-        unique_sirets = set(sirets.values())
-        if len(unique_sirets) > 1:
-            doc_ids = list(sirets.keys())
-            siret_vals = list(unique_sirets)
-            alerts.append(InconsistencyAlert(
-                id=str(uuid.uuid4()),
-                alert_type=AlertType.SIRET_MISMATCH,
-                severity=AlertSeverity.CRITIQUE,
-                description=(
-                    f"SIRET incohérent pour l'émetteur '{emetteur}' : "
-                    f"{siret_vals[0]} vs {siret_vals[1]}"
-                ),
-                document_ids=doc_ids,
-                field_in_conflict="siret",
-                value_a=siret_vals[0],
-                value_b=siret_vals[1],
-                suggestion="Vérifier l'identité légale de l'émetteur auprès du registre SIRENE.",
-            ))
+        with_siret = [rec for rec in group if rec.extraction.siret and SIRET_REGEX.fullmatch(rec.extraction.siret)]
+        if len(with_siret) < 2:
+            continue
+
+        factures = [r for r in with_siret if r.document_type == DocumentType.FACTURE]
+        attestations = [r for r in with_siret if r.document_type == DocumentType.ATTESTATION]
+
+        # Cas prioritaire de la consigne : facture ↔ attestation
+        compared_pairs: set[tuple[str, str]] = set()
+        for facture in factures:
+            for attestation in attestations:
+                if not _same_business_context(facture, attestation):
+                    continue
+
+                key = tuple(sorted([str(facture.document_id), str(attestation.document_id)]))
+                if key in compared_pairs:
+                    continue
+                compared_pairs.add(key)
+
+                siret_facture = facture.extraction.siret
+                siret_attestation = attestation.extraction.siret
+
+                if siret_facture != siret_attestation:
+                    alerts.append(InconsistencyAlert(
+                        id=str(uuid.uuid4()),
+                        alert_type=AlertType.SIRET_MISMATCH,
+                        severity=AlertSeverity.CRITIQUE,
+                        description=(
+                            f"SIRET incohérent entre facture et attestation pour l'émetteur "
+                            f"'{emetteur}' : {siret_facture} vs {siret_attestation}"
+                        ),
+                        document_ids=[facture.document_id, attestation.document_id],
+                        field_in_conflict="siret",
+                        value_a=siret_facture,
+                        value_b=siret_attestation,
+                        suggestion="Vérifier l'identité légale de l'émetteur auprès du registre SIRENE.",
+                    ))
+
+        # Fallback générique si pas de couple facture/attestation exploitable
+        if not factures or not attestations:
+            sirets = {rec.document_id: rec.extraction.siret for rec in with_siret}
+            unique_sirets = list(set(sirets.values()))
+            if len(unique_sirets) > 1:
+                doc_ids = list(sirets.keys())
+                alerts.append(InconsistencyAlert(
+                    id=str(uuid.uuid4()),
+                    alert_type=AlertType.SIRET_MISMATCH,
+                    severity=AlertSeverity.CRITIQUE,
+                    description=(
+                        f"SIRET incohérent pour l'émetteur '{emetteur}' : "
+                        f"{unique_sirets[0]} vs {unique_sirets[1]}"
+                    ),
+                    document_ids=doc_ids,
+                    field_in_conflict="siret",
+                    value_a=unique_sirets[0],
+                    value_b=unique_sirets[1],
+                    suggestion="Vérifier l'identité légale de l'émetteur auprès du registre SIRENE.",
+                ))
     return alerts
 
 
@@ -234,22 +289,29 @@ def _check_siret_mismatch(records: list[SilverRecord]) -> list[InconsistencyAler
 def _check_amount_inconsistency(records: list[SilverRecord]) -> list[InconsistencyAlert]:
     """Compare les montants TTC entre devis et factures du même émetteur."""
     alerts = []
-    devis = [r for r in records if r.document_type == DocumentType.DEVIS]
-    factures = [r for r in records if r.document_type == DocumentType.FACTURE]
+    by_emetteur = _group_by_emetteur(records)
 
-    for d in devis:
-        if not d.extraction.montants.ttc:
-            continue
-        emetteur_d = (d.extraction.emetteur_nom or "").strip().lower()
+    for emetteur, group in by_emetteur.items():
+        devis = [
+            r for r in group
+            if r.document_type == DocumentType.DEVIS and r.extraction.montants.ttc is not None
+        ]
+        factures = [
+            r for r in group
+            if r.document_type == DocumentType.FACTURE and r.extraction.montants.ttc is not None
+        ]
 
-        for f in factures:
-            if not f.extraction.montants.ttc:
-                continue
-            emetteur_f = (f.extraction.emetteur_nom or "").strip().lower()
+        for d in devis:
+            for f in factures:
+                if not _same_business_context(d, f):
+                    continue
 
-            if emetteur_d and emetteur_d == emetteur_f:
                 ttc_devis = d.extraction.montants.ttc
                 ttc_facture = f.extraction.montants.ttc
+
+                if ttc_devis is None or ttc_facture is None:
+                    continue
+
                 diff = abs(ttc_devis - ttc_facture)
                 tolerance = ttc_devis * AMOUNT_TOLERANCE_RATIO
 
@@ -260,7 +322,7 @@ def _check_amount_inconsistency(records: list[SilverRecord]) -> list[Inconsisten
                         severity=AlertSeverity.HAUTE,
                         description=(
                             f"Montant TTC du devis ({ttc_devis} €) diffère de "
-                            f"la facture ({ttc_facture} €) pour '{emetteur_d}' "
+                            f"la facture ({ttc_facture} €) pour '{emetteur}' "
                             f"(écart de {diff:.2f} €)"
                         ),
                         document_ids=[d.document_id, f.document_id],
@@ -280,24 +342,26 @@ def _check_amount_inconsistency(records: list[SilverRecord]) -> list[Inconsisten
 def _check_date_incoherence(records: list[SilverRecord]) -> list[InconsistencyAlert]:
     """Détecte une facture avec une date antérieure au devis du même émetteur."""
     alerts = []
-    devis = [
-        r for r in records
-        if r.document_type == DocumentType.DEVIS and r.extraction.date_emission
-    ]
-    factures = [
-        r for r in records
-        if r.document_type == DocumentType.FACTURE and r.extraction.date_emission
-    ]
+    by_emetteur = _group_by_emetteur(records)
 
-    for d in devis:
-        emetteur_d = (d.extraction.emetteur_nom or "").strip().lower()
-        date_devis = d.extraction.date_emission
+    for emetteur, group in by_emetteur.items():
+        devis = [
+            r for r in group
+            if r.document_type == DocumentType.DEVIS and _is_iso_date(r.extraction.date_emission)
+        ]
+        factures = [
+            r for r in group
+            if r.document_type == DocumentType.FACTURE and _is_iso_date(r.extraction.date_emission)
+        ]
 
-        for f in factures:
-            emetteur_f = (f.extraction.emetteur_nom or "").strip().lower()
-            date_facture = f.extraction.date_emission
+        for d in devis:
+            for f in factures:
+                if not _same_business_context(d, f):
+                    continue
 
-            if emetteur_d and emetteur_d == emetteur_f:
+                date_devis = d.extraction.date_emission
+                date_facture = f.extraction.date_emission
+
                 if date_facture and date_devis and date_facture < date_devis:
                     alerts.append(InconsistencyAlert(
                         id=str(uuid.uuid4()),
@@ -306,7 +370,7 @@ def _check_date_incoherence(records: list[SilverRecord]) -> list[InconsistencyAl
                         description=(
                             f"La facture ('{date_facture}') est antérieure"
                             f" au devis ('{date_devis}')"
-                            f" pour l'émetteur '{emetteur_d}'"
+                            f" pour l'émetteur '{emetteur}'"
                         ),
                         document_ids=[d.document_id, f.document_id],
                         field_in_conflict="date_emission",
