@@ -15,7 +15,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 UPLOAD_DIR = Path("./storage/bronze")
-ALLOWED_MIME = {"application/pdf"}
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
 
 
 def _is_admin(payload: dict) -> bool:
@@ -30,13 +35,39 @@ def _user_owns(document_id: uuid.UUID, user_id: str) -> bool:
     return bronze.document.uploaded_by == user_id
 
 
+def _format_pipeline_error(exc: Exception) -> str:
+    """Normalise un message d'erreur lisible pour le frontend."""
+    raw = str(exc).strip()
+    message = raw or exc.__class__.__name__
+    lower = message.lower()
+
+    if "invalid api key" in lower:
+        return "Clé API LLM invalide."
+    if "authenticationerror" in lower and "401" in lower:
+        return "Erreur d'authentification LLM. Vérifiez la clé API."
+
+    return message
+
+
+def _is_allowed_upload(file: UploadFile) -> bool:
+    content_type = (file.content_type or "").lower()
+    if content_type in ALLOWED_MIME_TYPES:
+        return True
+
+    if content_type.startswith("image/"):
+        return True
+
+    suffix = Path(file.filename or "").suffix.lower()
+    return suffix in ALLOWED_EXTENSIONS
+
+
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_documents(
     files: list[UploadFile],
     background_tasks: BackgroundTasks,
     payload: dict = Depends(require_auth),
 ) -> list[DocumentResponse]:
-    """Upload un ou plusieurs fichiers PDF et lance leur traitement en arrière-plan."""
+    """Upload un ou plusieurs documents et lance leur traitement en arrière-plan."""
     if not files:
         raise HTTPException(status_code=400, detail="Aucun fichier fourni")
 
@@ -45,12 +76,12 @@ async def upload_documents(
     user_id: str = payload["sub"]
 
     for file in files:
-        if file.content_type not in ALLOWED_MIME:
+        if not _is_allowed_upload(file):
             raise HTTPException(
                 status_code=415,
                 detail=(
                     f"Type de fichier non supporté : {file.content_type}."
-                    " Seuls les PDF sont acceptés."
+                    " Formats acceptés : PDF, DOC/DOCX, images."
                 ),
             )
 
@@ -63,6 +94,7 @@ async def upload_documents(
             filename=safe_filename,
             original_filename=file.filename or "document.pdf",
             file_size=len(content),
+            mime_type=file.content_type or "application/octet-stream",
             uploaded_by=user_id,
         )
 
@@ -82,10 +114,19 @@ async def upload_documents(
 
 
 async def _process_and_curate(document: UploadedDocument, file_path: Path) -> None:
+    datalake.update_bronze_status(document.id, ProcessingStatus.PROCESSING)
     try:
         process_document(document, file_path)
+        datalake.update_bronze_status(document.id, ProcessingStatus.EXTRACTED)
         curate_all_documents()
+        datalake.update_bronze_status(document.id, ProcessingStatus.CURATED)
     except Exception as exc:
+        error_message = _format_pipeline_error(exc)
+        datalake.update_bronze_status(
+            document.id,
+            ProcessingStatus.ERROR,
+            error_message=error_message,
+        )
         logger.exception("Erreur pipeline pour '%s' : %s", document.original_filename, exc)
 
 
@@ -159,6 +200,7 @@ async def list_documents(payload: dict = Depends(require_auth)) -> list[Document
             original_filename=bronze.document.original_filename,
             status=bronze.document.status,
             upload_at=bronze.document.upload_at,
+            error_message=bronze.document.error_message,
             uploaded_by=bronze.document.uploaded_by,
         ))
 
@@ -204,8 +246,9 @@ async def get_document(
             id=bronze.document.id,
             filename=bronze.document.filename,
             original_filename=bronze.document.original_filename,
-            status=ProcessingStatus.UPLOADED,
+            status=bronze.document.status,
             upload_at=bronze.document.upload_at,
+            error_message=bronze.document.error_message,
         )
 
     raise HTTPException(status_code=404, detail=f"Document '{document_id}' non trouvé")

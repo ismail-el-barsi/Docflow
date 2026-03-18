@@ -15,6 +15,103 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+function pickMessage(payload: unknown): string | null {
+  if (!payload) return null;
+
+  if (typeof payload === 'string') {
+    return payload;
+  }
+
+  if (typeof payload === 'object') {
+    const data = payload as Record<string, unknown>;
+    const detail = data.detail;
+
+    if (typeof detail === 'string') {
+      return detail;
+    }
+
+    if (Array.isArray(detail)) {
+      const firstError = detail[0];
+      if (typeof firstError === 'string') {
+        return firstError;
+      }
+      if (firstError && typeof firstError === 'object') {
+        const firstErrorObj = firstError as Record<string, unknown>;
+        if (typeof firstErrorObj.msg === 'string') {
+          return firstErrorObj.msg;
+        }
+      }
+    }
+
+    if (detail && typeof detail === 'object') {
+      const detailObj = detail as Record<string, unknown>;
+      if (typeof detailObj.message === 'string') {
+        return detailObj.message;
+      }
+      if (detailObj.error && typeof detailObj.error === 'object') {
+        const nestedError = detailObj.error as Record<string, unknown>;
+        if (typeof nestedError.message === 'string') {
+          return nestedError.message;
+        }
+      }
+    }
+
+    if (typeof data.message === 'string') {
+      return data.message;
+    }
+
+    if (typeof data.error === 'string') {
+      return data.error;
+    }
+
+    if (data.error && typeof data.error === 'object') {
+      const nestedError = data.error as Record<string, unknown>;
+      if (typeof nestedError.message === 'string') {
+        return nestedError.message;
+      }
+    }
+  }
+
+  return null;
+}
+
+export function getApiErrorMessage(error: unknown, fallback = 'Une erreur est survenue.'): string {
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as {
+      response?: { status?: number; data?: unknown };
+      code?: string;
+      message?: string;
+    };
+
+    if (axiosError.response?.status === 401) {
+      return 'Session expirée ou non autorisée. Veuillez vous reconnecter.';
+    }
+
+    if (axiosError.response?.status === 403) {
+      return 'Action interdite avec votre compte.';
+    }
+
+    const parsed = pickMessage(axiosError.response?.data);
+    if (parsed) {
+      return parsed;
+    }
+
+    if (axiosError.code === 'ERR_NETWORK') {
+      return 'Le serveur est inaccessible. Vérifiez que le backend est démarré.';
+    }
+
+    if (axiosError.message) {
+      return axiosError.message;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 // Inject JWT token on every request if available
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');

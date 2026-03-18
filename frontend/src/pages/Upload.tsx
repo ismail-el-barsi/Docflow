@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { uploadDocuments, listDocuments, getExtraction, deleteDocument } from '../api/client';
+import {
+  uploadDocuments,
+  listDocuments,
+  getExtraction,
+  deleteDocument,
+  getApiErrorMessage,
+} from '../api/client';
 import type { DocumentResponse, ExtractionResult } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -18,6 +24,28 @@ const TYPE_LABELS: Record<string, string> = {
   autre: 'Autre',
 };
 
+const ACCEPTED_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
+const ACCEPTED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
+const INPUT_ACCEPT = '.pdf,.doc,.docx,image/*';
+
+function isAcceptedUploadFile(file: File): boolean {
+  if (file.type.startsWith('image/')) {
+    return true;
+  }
+
+  if (ACCEPTED_MIME_TYPES.has(file.type)) {
+    return true;
+  }
+
+  const lowerName = file.name.toLowerCase();
+  return ACCEPTED_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
+}
+
 export function UploadPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -25,6 +53,7 @@ export function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<DocumentResponse | null>(null);
   const [extraction, setExtraction] = useState<ExtractionResult | null>(null);
@@ -50,16 +79,26 @@ export function UploadPage() {
   }, []);
 
   const handleFiles = async (files: FileList) => {
-    const pdfs = Array.from(files).filter((f) => f.type === 'application/pdf');
-    if (pdfs.length === 0) return;
+    const candidateFiles = Array.from(files).filter(isAcceptedUploadFile);
+    if (candidateFiles.length === 0) {
+      setUploadError('Format non supporté. Merci d\'envoyer des PDF, DOC/DOCX ou images.');
+      return;
+    }
 
+    setUploadError(null);
     setUploading(true);
     try {
-      const result = await uploadDocuments(pdfs);
+      const result = await uploadDocuments(candidateFiles);
       setUploadedFiles(result.map((d) => d.original_filename));
       await refreshDocuments();
     } catch (err) {
       console.error('Upload error:', err);
+      setUploadError(
+        getApiErrorMessage(
+          err,
+          'Erreur lors de l\'upload. Vérifiez votre configuration (clé API, format du fichier).'
+        )
+      );
     } finally {
       setUploading(false);
     }
@@ -123,6 +162,35 @@ export function UploadPage() {
         <p>Uploadez vos pièces comptables — elles seront classifiées, extraites et analysées automatiquement.</p>
       </div>
 
+      {uploadError && (
+        <div
+          className="card animate-slide-up"
+          style={{
+            marginBottom: '1rem',
+            borderColor: 'rgba(255,77,109,0.4)',
+            background: 'rgba(255,77,109,0.08)',
+            position: 'relative',
+            paddingRight: '3rem',
+          }}
+          role="alert"
+        >
+          <button
+            className="modal-close"
+            onClick={() => setUploadError(null)}
+            style={{ position: 'absolute', top: '0.6rem', right: '0.9rem', fontSize: '1.2rem' }}
+            aria-label="Fermer l'alerte"
+          >
+            &times;
+          </button>
+          <p style={{ color: 'var(--color-danger)', fontWeight: 700, marginBottom: '0.2rem' }}>
+            Erreur d'upload
+          </p>
+          <p className="text-sm" style={{ color: 'var(--color-text)' }}>
+            {uploadError}
+          </p>
+        </div>
+      )}
+
       {/* Drop Zone */}
       <div
         id="upload-dropzone"
@@ -137,7 +205,7 @@ export function UploadPage() {
           ref={inputRef}
           type="file"
           multiple
-          accept=".pdf,application/pdf"
+          accept={INPUT_ACCEPT}
           style={{ display: 'none' }}
           onChange={(e) => e.target.files && handleFiles(e.target.files)}
         />
@@ -154,8 +222,8 @@ export function UploadPage() {
         ) : (
           <>
             <span className="drop-zone-icon">☁️</span>
-            <h2>Déposez vos PDF ici</h2>
-            <p>ou cliquez pour sélectionner — Formats acceptés : PDF uniquement</p>
+            <h2>Déposez vos documents ici</h2>
+            <p>ou cliquez pour sélectionner — Formats acceptés : PDF, DOC/DOCX, images</p>
             <div style={{ marginTop: '1.5rem' }}>
               <button id="upload-btn" className="btn btn-primary">
                 📂 Choisir des fichiers
@@ -210,7 +278,7 @@ export function UploadPage() {
         <div className="empty-state">
           <span className="empty-state-icon">📭</span>
           <h3>Aucun document encore</h3>
-          <p>Uploadez vos premiers PDF pour démarrer le traitement</p>
+          <p>Uploadez vos premiers documents pour démarrer le traitement</p>
         </div>
       ) : (
         <div className="table-container">
@@ -232,6 +300,11 @@ export function UploadPage() {
                     <div className="flex-col">
                       <span style={{ fontWeight: 600 }}>{doc.original_filename}</span>
                       <span className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(doc.upload_at).toLocaleString('fr-FR')}</span>
+                      {doc.status === 'error' && doc.error_message && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-danger)' }}>
+                          ⚠️ {doc.error_message}
+                        </span>
+                      )}
                     </div>
                   </td>
                   {isAdmin && (
@@ -264,6 +337,15 @@ export function UploadPage() {
                   </td>
                   <td>
                     <div className="flex gap-1">
+                      {doc.status === 'error' && doc.error_message && (
+                        <button
+                          className="btn btn-ghost"
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--color-danger)' }}
+                          onClick={() => setUploadError(doc.error_message)}
+                        >
+                          ⚠️ Détail
+                        </button>
+                      )}
                       <button 
                         className="btn btn-ghost" 
                         style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
