@@ -88,9 +88,9 @@ export async function getCrmSuppliers(): Promise<SupplierSummary[]> {
   return res.data;
 }
 
-export async function getSupplierDocuments(siren: string): Promise<GoldRecord[]> {
-  const supplierKey = encodeURIComponent(siren);
-  const res = await api.get<GoldRecord[]>(`/api/crm/suppliers/${supplierKey}`);
+export async function getSupplierDocuments(supplierKey: string): Promise<GoldRecord[]> {
+  // encodeURIComponent encode les ":" et espaces → le backend reçoit la clé complète via :path
+  const res = await api.get<GoldRecord[]>(`/api/crm/suppliers/${encodeURIComponent(supplierKey)}`);
   return res.data;
 }
 
