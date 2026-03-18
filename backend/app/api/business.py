@@ -1,50 +1,66 @@
 """Routes API pour le CRM fournisseurs et le dashboard conformité."""
-import re
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.auth import require_admin
+from app.schemas.business import (
+    SupplierSummary,
+    build_supplier_key,
+    group_type_of,
+)
 from app.schemas.datalake import GoldRecord
 from app.schemas.fraud import AlertSeverity
 from app.storage import datalake
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 
 router = APIRouter(tags=["business"])
-UNKNOWN_SIREN_KEY = "INCONNU"
+
+
+# ─── Helpers ─────────────────────────────────────────────────────────────────
+
+
+def _match_gold_to_key(gold: GoldRecord, supplier_key: str) -> bool:
+    """Retourne True si ce GoldRecord appartient à la supplier_key donnée."""
+    return build_supplier_key(gold.extraction.siren, gold.extraction.emetteur_nom) == supplier_key
 
 
 # ─── CRM ─────────────────────────────────────────────────────────────────────
 
-class SupplierSummary(BaseModel):
-    siren: str
-    nom: str
-    nombre_documents: int
-    total_ttc: float
-    a_des_alertes: bool
-    types_documents: list[str]
-
 
 @router.get("/api/crm/suppliers", response_model=list[SupplierSummary])
 async def get_crm_suppliers(_: dict = Depends(require_admin)) -> list[SupplierSummary]:
-    """Données CRM : fournisseurs groupés par SIREN avec montants cumulés."""
+    """
+    Données CRM : fournisseurs groupés par clé composite.
+
+    Priorité de groupement :
+      1. SIREN connu  → "siren:<siren>"
+      2. Nom seul     → "nom:<nom_normalisé>"
+      3. Ni l'un ni l'autre → "inconnu"
+    """
     gold_records = datalake.load_all_gold()
     suppliers: dict[str, dict] = {}
 
     for gold in gold_records:
         ext = gold.extraction
-        siren = ext.siren or UNKNOWN_SIREN_KEY
-        nom = ext.emetteur_nom or "Émetteur inconnu"
+        key = build_supplier_key(ext.siren, ext.emetteur_nom)
+        nom = (ext.emetteur_nom or "").strip() or "Émetteur inconnu"
 
-        if siren not in suppliers:
-            suppliers[siren] = {
-                "siren": siren,
+        if key not in suppliers:
+            suppliers[key] = {
+                "supplier_key": key,
+                "group_type": group_type_of(key),
+                "siren": ext.siren,
+                # On conserve le premier nom non-vide rencontré
                 "nom": nom,
                 "nombre_documents": 0,
                 "total_ttc": 0.0,
                 "a_des_alertes": False,
                 "types_documents": set(),
             }
+        else:
+            # Si le nom d'affichage était générique, on le remplace
+            if suppliers[key]["nom"] == "Émetteur inconnu" and nom != "Émetteur inconnu":
+                suppliers[key]["nom"] = nom
 
-        s = suppliers[siren]
+        s = suppliers[key]
         s["nombre_documents"] += 1
         if ext.montants.ttc:
             s["total_ttc"] += float(ext.montants.ttc)
@@ -52,8 +68,14 @@ async def get_crm_suppliers(_: dict = Depends(require_admin)) -> list[SupplierSu
             s["a_des_alertes"] = True
         s["types_documents"].add(gold.document_type.value)
 
+    # Tri : SIREN d'abord, puis nom, puis inconnu
+    order = {"siren": 0, "nom": 1, "inconnu": 2}
+    sorted_suppliers = sorted(suppliers.values(), key=lambda v: (order[v["group_type"]], v["nom"]))
+
     return [
         SupplierSummary(
+            supplier_key=v["supplier_key"],
+            group_type=v["group_type"],
             siren=v["siren"],
             nom=v["nom"],
             nombre_documents=v["nombre_documents"],
@@ -61,37 +83,47 @@ async def get_crm_suppliers(_: dict = Depends(require_admin)) -> list[SupplierSu
             a_des_alertes=v["a_des_alertes"],
             types_documents=list(v["types_documents"]),
         )
-        for v in suppliers.values()
+        for v in sorted_suppliers
     ]
 
 
-def _normalize_supplier_siren_filter(siren: str) -> str:
-    normalized = (siren or "").strip()
-    if not normalized or normalized.upper() == UNKNOWN_SIREN_KEY:
-        return UNKNOWN_SIREN_KEY
+@router.get("/api/crm/suppliers/{supplier_key:path}", response_model=list[GoldRecord])
+async def get_supplier_documents(
+    supplier_key: str,
+    _: dict = Depends(require_admin),
+) -> list[GoldRecord]:
+    """
+    Historique de tous les documents Gold associés à une supplier_key composite.
 
-    digits_only = re.sub(r"\D", "", normalized)
-    if len(digits_only) == 9:
-        return digits_only
+    La supplier_key peut être :
+      - "siren:123456789"
+      - "nom:acme sa"
+      - "inconnu"
+    """
+    if not supplier_key:
+        raise HTTPException(status_code=400, detail="supplier_key invalide")
 
-    return normalized
-
-
-@router.get("/api/crm/suppliers/{siren}", response_model=list[GoldRecord])
-async def get_supplier_documents(siren: str, _: dict = Depends(require_admin)) -> list[GoldRecord]:
-    """Récupère tous les documents Gold associés à un SIREN spécifique."""
     gold_records = datalake.load_all_gold()
-    normalized_siren = _normalize_supplier_siren_filter(siren)
+    matched = [
+        g for g in gold_records if _match_gold_to_key(g, supplier_key)
+    ]
 
-    if normalized_siren == UNKNOWN_SIREN_KEY:
-        return [g for g in gold_records if not g.extraction.siren]
-
-    return [g for g in gold_records if g.extraction.siren == normalized_siren]
+    # Tri anti-chronologique pour l'historique
+    matched.sort(key=lambda g: g.curated_at, reverse=True)
+    return matched
 
 
 # ─── Conformité ───────────────────────────────────────────────────────────────
 
-class ComplianceDashboard(BaseModel):
+
+class ComplianceDashboard:
+    pass  # Voir ci-dessous — on réutilise le modèle inline
+
+
+from pydantic import BaseModel  # noqa: E402
+
+
+class ComplianceDashboardSchema(BaseModel):
     total_documents: int
     documents_conformes: int
     documents_non_conformes: int
@@ -102,14 +134,13 @@ class ComplianceDashboard(BaseModel):
     alertes_totales: int
 
 
-@router.get("/api/compliance/dashboard", response_model=ComplianceDashboard)
-async def get_compliance_dashboard(_: dict = Depends(require_admin)) -> ComplianceDashboard:
+@router.get("/api/compliance/dashboard", response_model=ComplianceDashboardSchema)
+async def get_compliance_dashboard(_: dict = Depends(require_admin)) -> ComplianceDashboardSchema:
     """Dashboard conformité : métriques globales sur l'ensemble des documents."""
     gold_records = datalake.load_all_gold()
     total = len(gold_records)
     conformes = sum(1 for g in gold_records if g.is_compliant)
 
-    # Déduplique les alertes
     seen_ids: set[str] = set()
     critiques = hautes = moyennes = 0
 
@@ -124,7 +155,7 @@ async def get_compliance_dashboard(_: dict = Depends(require_admin)) -> Complian
                 elif alert.severity == AlertSeverity.MOYENNE:
                     moyennes += 1
 
-    return ComplianceDashboard(
+    return ComplianceDashboardSchema(
         total_documents=total,
         documents_conformes=conformes,
         documents_non_conformes=total - conformes,

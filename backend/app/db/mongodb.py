@@ -86,4 +86,5 @@ def _ensure_indexes(database: Database) -> None:
     database["silver"].create_index("document_id", unique=True)
     database["gold"].create_index("document_id", unique=True)
     database["gold"].create_index("extraction.siren")
+    database["gold"].create_index("extraction.emetteur_nom")
     database["gold"].create_index("alerts.id")

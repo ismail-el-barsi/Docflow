@@ -78,8 +78,12 @@ export interface InconsistencyAlert {
   suggestion: string | null;
 }
 
+export type GroupType = 'siren' | 'nom' | 'inconnu';
+
 export interface SupplierSummary {
-  siren: string;
+  supplier_key: string;
+  group_type: GroupType;
+  siren: string | null;
   nom: string;
   nombre_documents: number;
   total_ttc: number;
