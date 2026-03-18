@@ -36,3 +36,4 @@ frontend/storage/
 
 # Logs
 *.log
+.logs/

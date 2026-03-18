@@ -29,7 +29,8 @@ class UploadedDocument(BaseModel):
     upload_at: datetime = Field(default_factory=datetime.utcnow)
     status: ProcessingStatus = ProcessingStatus.UPLOADED
     error_message: str | None = None
-    uploaded_by: str | None = None  # user_id (MongoDB ObjectId)
+    owner_id: str | None = None      # MongoDB ObjectId — pour les vérifications de propriété
+    uploaded_by: str | None = None   # Nom affiché (full_name)
 
 
 class DocumentResponse(BaseModel):

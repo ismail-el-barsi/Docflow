@@ -82,7 +82,7 @@ export function CrmPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '4rem', justifyContent: 'center' }}>
+      <div className="loading-row">
         <div className="spinner" />
         <span className="loading-text">Chargement des fournisseurs…</span>
       </div>
@@ -117,7 +117,7 @@ export function CrmPage() {
         </div>
         <div className="stat-card">
           <span className="stat-icon">⚠️</span>
-          <span className="stat-value" style={{ color: 'var(--color-warning)' }}>
+          <span className="stat-value text-warning">
             {suppliers.filter((s) => s.a_des_alertes).length}
           </span>
           <span className="stat-label">Avec alertes</span>
@@ -125,36 +125,24 @@ export function CrmPage() {
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="toolbar wrap mb-3">
         <input
           id="supplier-search"
           type="text"
           placeholder="🔍 Rechercher par nom ou SIREN…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: '200px',
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '0.625rem 1rem',
-            color: 'var(--color-text)',
-            fontSize: '0.9rem',
-            fontFamily: 'inherit',
-            outline: 'none',
-          }}
+          className="input flex-1"
         />
 
         {/* Filtre de groupe */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="flex items-center gap-1 flex-wrap">
           {(['all', 'siren', 'nom', 'inconnu'] as const).map((g) => (
             <button
               key={g}
               id={`filter-group-${g}`}
-              className={`btn ${groupFilter === g ? 'btn-primary' : 'btn-ghost'}`}
+              className={`btn btn-xs ${groupFilter === g ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setGroupFilter(g)}
-              style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
             >
               {g === 'all' ? '📋 Tous' : `${GROUP_META[g].icon} ${GROUP_META[g].label}`}
             </button>
@@ -180,30 +168,27 @@ export function CrmPage() {
             return (
               <div
                 key={s.supplier_key}
-                className={`supplier-card ${s.a_des_alertes ? 'has-alerts' : ''}`}
+                className={`supplier-card cursor-pointer ${s.a_des_alertes ? 'has-alerts' : ''}`}
                 onClick={() => openSupplier(s)}
-                style={{ cursor: 'pointer' }}
               >
-                {/* En-tête : nom + badge de groupe */}
                 <div>
-                  <div className="flex items-center gap-1" style={{ marginBottom: '0.25rem' }}>
+                  <div className="flex items-center gap-1 supplier-card-name-row">
                     <span className="supplier-name">{s.nom}</span>
                     {s.a_des_alertes && (
-                      <span title="Alertes détectées" style={{ fontSize: '1rem' }}>⚠️</span>
+                      <span title="Alertes détectées" className="text-base">⚠️</span>
                     )}
                   </div>
 
-                  {/* Identifiant légal ou indicateur de groupe */}
-                  <div className="supplier-siren" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span className={`badge ${meta.badgeClass}`} style={{ fontSize: '0.7rem' }}>
+                  <div className="supplier-siren flex items-center gap-1 flex-wrap">
+                    <span className={`badge ${meta.badgeClass} text-xs`}>
                       {meta.icon} {meta.label}
                     </span>
                     {s.siren ? (
-                      <span className="font-mono" style={{ fontSize: '0.78rem' }}>SIREN : {s.siren}</span>
+                      <span className="font-mono text-sm text-muted">SIREN : {s.siren}</span>
                     ) : s.group_type === 'nom' ? (
-                      <span style={{ fontSize: '0.78rem', opacity: 0.7 }}>SIREN non extrait</span>
+                      <span className="text-sm text-muted">SIREN non extrait</span>
                     ) : (
-                      <span style={{ fontSize: '0.78rem', opacity: 0.7 }}>Ni SIREN ni nom</span>
+                      <span className="text-sm text-muted">Ni SIREN ni nom</span>
                     )}
                   </div>
                 </div>
@@ -212,7 +197,7 @@ export function CrmPage() {
                   {s.total_ttc.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} €
                 </div>
 
-                <div className="flex gap-1" style={{ flexWrap: 'wrap' }}>
+                <div className="flex gap-1 flex-wrap">
                   {s.types_documents.map((t) => (
                     <span key={t} className={`badge badge-${t}`}>
                       {TYPE_ICONS[t]} {t}
@@ -239,9 +224,9 @@ export function CrmPage() {
         <div className="modal-overlay" onClick={closeSupplier}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{selectedSupplier.nom}</h2>
-                <span className={`badge ${GROUP_META[selectedSupplier.group_type].badgeClass}`} style={{ fontSize: '0.75rem' }}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold">{selectedSupplier.nom}</h2>
+                <span className={`badge ${GROUP_META[selectedSupplier.group_type].badgeClass} text-xs`}>
                   {GROUP_META[selectedSupplier.group_type].icon} {GROUP_META[selectedSupplier.group_type].label}
                 </span>
                 {selectedSupplier.siren && (
@@ -252,26 +237,18 @@ export function CrmPage() {
             </div>
 
             <div className="modal-body">
-              {/* KPIs fournisseur */}
-              <div className="stat-grid" style={{ marginBottom: '2rem' }}>
+              <div className="stat-grid mb-4">
                 <div className="stat-card">
                   <span className="stat-label">Total Cumulé</span>
-                  <span className="stat-value" style={{ fontSize: '1.5rem' }}>
-                    {selectedSupplier.total_ttc.toLocaleString('fr-FR')} €
-                  </span>
+                  <span className="stat-value text-2xl">{selectedSupplier.total_ttc.toLocaleString('fr-FR')} €</span>
                 </div>
                 <div className="stat-card">
                   <span className="stat-label">Documents</span>
-                  <span className="stat-value" style={{ fontSize: '1.5rem' }}>
-                    {selectedSupplier.nombre_documents}
-                  </span>
+                  <span className="stat-value text-2xl">{selectedSupplier.nombre_documents}</span>
                 </div>
                 <div className="stat-card">
                   <span className="stat-label">Conformité</span>
-                  <span
-                    className={`badge ${selectedSupplier.a_des_alertes ? 'badge-haute' : 'badge-curated'}`}
-                    style={{ marginTop: '0.5rem' }}
-                  >
+                  <span className={`badge ${selectedSupplier.a_des_alertes ? 'badge-haute' : 'badge-curated'} mt-2`}>
                     {selectedSupplier.a_des_alertes ? '⚠️ Alertes actives' : '✅ Dossier conforme'}
                   </span>
                 </div>
@@ -285,7 +262,7 @@ export function CrmPage() {
                   <span>Chargement de l'historique…</span>
                 </div>
               ) : supplierDocs.length === 0 ? (
-                <div className="empty-state" style={{ padding: '2rem' }}>
+                <div className="empty-state p-8">
                   <span className="empty-state-icon">📭</span>
                   <p>Aucun document trouvé pour ce fournisseur.</p>
                 </div>
@@ -312,7 +289,7 @@ export function CrmPage() {
                           <td className="text-sm">
                             {doc.extraction.date_emission
                               ? doc.extraction.date_emission
-                              : <span style={{ opacity: 0.4 }}>—</span>}
+                              : <span className="text-muted">—</span>}
                           </td>
                           <td>
                             <span className={`badge badge-${doc.document_type}`}>
@@ -320,15 +297,17 @@ export function CrmPage() {
                             </span>
                           </td>
                           <td className="font-mono text-sm">
-                            {doc.extraction.numero_document || <span style={{ opacity: 0.4 }}>—</span>}
+                            {doc.extraction.numero_document || <span className="text-muted">—</span>}
                           </td>
-                          <td style={{ fontWeight: 600 }}>
+                          <td className="font-semibold">
                             {doc.extraction.montants.ttc != null
                               ? `${Number(doc.extraction.montants.ttc).toLocaleString('fr-FR')} €`
-                              : <span style={{ opacity: 0.4 }}>—</span>}
+                              : <span className="text-muted">—</span>}
                           </td>
-                          <td className="text-sm" style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {doc.original_filename}
+                          <td className="text-sm" style={{ maxWidth: '180px' }}>
+                            <span className="truncate" title={doc.original_filename}>
+                              {doc.original_filename}
+                            </span>
                           </td>
                           <td>
                             {doc.alerts.length > 0 ? (
@@ -346,8 +325,7 @@ export function CrmPage() {
                 </div>
               )}
             </div>
-
-            <div className="modal-header" style={{ top: 'auto', bottom: 0, borderTop: '1px solid var(--color-border)', borderBottom: 'none' }}>
+            <div className="modal-footer">
               <button className="btn btn-ghost w-full" onClick={closeSupplier}>Fermer</button>
             </div>
           </div>

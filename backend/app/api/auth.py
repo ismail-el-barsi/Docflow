@@ -32,9 +32,9 @@ def _verify(plain: str, hashed: str) -> bool:
     return _pwd.verify(plain, hashed)
 
 
-def _create_token(sub: str, role: str) -> str:
+def _create_token(sub: str, role: str, email: str, full_name: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=_JWT_EXPIRE_MINUTES)
-    return jwt.encode({"sub": sub, "role": role, "exp": expire}, _JWT_SECRET, algorithm=_JWT_ALGO)
+    return jwt.encode({"sub": sub, "role": role, "email": email, "full_name": full_name, "exp": expire}, _JWT_SECRET, algorithm=_JWT_ALGO)
 
 
 def _doc_to_user_out(doc: dict) -> UserOut:
@@ -74,7 +74,7 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
     if not doc or not _verify(form.password, doc["hashed_password"]):
         raise HTTPException(status_code=401, detail="Identifiants invalides")
 
-    token = _create_token(sub=str(doc["_id"]), role=doc["role"])
+    token = _create_token(sub=str(doc["_id"]), role=doc["role"], email=doc["email"], full_name=doc["full_name"])
     return TokenResponse(access_token=token, user=_doc_to_user_out(doc))
 
 
