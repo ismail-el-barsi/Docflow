@@ -2,6 +2,12 @@
 
 DocFlow est une solution pour l'automatisation du traitement des documents administratifs (factures, devis, attestations). Le projet suit une architecture Data-Driven avec un pipeline de traitement intelligent.
 
+## 🎬 Démo
+
+<video src="./demo_docflow.mp4" controls width="720" preload="metadata">
+    Votre navigateur ne supporte pas la lecture vidéo intégrée.
+</video>
+
 ## 🚀 Fonctionnalités implémentées
 
 ### 1. Upload multi-documents
