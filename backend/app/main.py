@@ -1,4 +1,8 @@
-"""Point d'entree FastAPI - DocFlow Backend."""
+"""
+Point d'entrée principal de l'API DocFlow.
+Gère le cycle de vie de l'application (lifespan), l'initialisation du Data Lake et les connexions aux bases de données.
+"""
+
 
 import logging
 import os
@@ -19,7 +23,9 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(mes
 logger = logging.getLogger(__name__)
 
 
-async def _seed_admin(db) -> None:
+async def _seed_admin(db: any) -> None:
+    """Crée un compte administrateur par défaut si aucun utilisateur n'existe."""
+
     from passlib.context import CryptContext
     pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
     admin_email = os.getenv("ADMIN_EMAIL", "admin@docflow.fr")

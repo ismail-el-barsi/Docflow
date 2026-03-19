@@ -1,5 +1,6 @@
 """Service de détection d'incohérences et fraudes inter-documents."""
-# fraud update with api de insee
+# Extension de la détection de fraude via l'API SIRENE de l'INSEE
+
 import logging
 import os
 import re
@@ -185,7 +186,8 @@ def detect_inconsistencies(records: list[SilverRecord]) -> list[InconsistencyAle
     return alerts
 
 
-# ─── Règle 1 : Format SIREN invalide ──────────────────────────────────────────
+# --- RÈGLE 1 : Validation du Format SIREN ---
+# Le SIREN doit être composé de 9 chiffres exacts. Un format invalide suggère une erreur de saisie ou un faux document.
 
 def _check_siren_format(records: list[SilverRecord]) -> list[InconsistencyAlert]:
     alerts = []
@@ -227,7 +229,9 @@ def _check_siren_format(records: list[SilverRecord]) -> list[InconsistencyAlert]
     return alerts
 
 
-# ─── Règle 2 : SIRET incohérent entre documents ───────────────────────────────
+# --- RÈGLE 2 : Cohérence du SIRET (Établissement) ---
+# Un émetteur (même nom) doit conserver le même SIRET sur l'ensemble de ses documents.
+# Une divergence entre une facture et une attestation est une alerte critique d'usurpation.
 
 def _check_siret_mismatch(records: list[SilverRecord]) -> list[InconsistencyAlert]:
     """
@@ -299,7 +303,8 @@ def _check_siret_mismatch(records: list[SilverRecord]) -> list[InconsistencyAler
     return alerts
 
 
-# ─── Règle 3 : Incohérence montant devis vs facture ──────────────────────────
+# --- RÈGLE 3 : Concordance des Montants Devis vs Facture ---
+# Le montant final facturé ne doit pas s'écarter significativement du devis initial sans justification.
 
 def _check_amount_inconsistency(records: list[SilverRecord]) -> list[InconsistencyAlert]:
     """Compare les montants TTC entre devis et factures du même émetteur."""
@@ -354,7 +359,8 @@ def _check_amount_inconsistency(records: list[SilverRecord]) -> list[Inconsisten
     return alerts
 
 
-# ─── Règle 4 : Incohérence de dates ──────────────────────────────────────────
+# --- RÈGLE 4 : Chronologie des Documents ---
+# Une facture ne peut pas être émise avant le devis qu'elle honore.
 
 def _check_date_incoherence(records: list[SilverRecord]) -> list[InconsistencyAlert]:
     """Détecte une facture avec une date antérieure au devis du même émetteur."""
@@ -399,7 +405,8 @@ def _check_date_incoherence(records: list[SilverRecord]) -> list[InconsistencyAl
     return alerts
 
 
-# ─── Règle 5 : Attestation expirée ───────────────────────────────────────────
+# --- RÈGLE 5 : Validité des Attestations ---
+# Vérifie que la date d'échéance de l'attestation n'est pas dépassée par rapport à la date du jour.
 
 def _check_attestation_expiry(records: list[SilverRecord]) -> list[InconsistencyAlert]:
     """
@@ -434,7 +441,8 @@ def _check_attestation_expiry(records: list[SilverRecord]) -> list[Inconsistency
     return alerts
 
 
-# ─── Règle 6 : Vérification API INSEE (SIRENE) ────────────────────────────────
+# --- RÈGLE 6 : Vérification au Registre Officiel (INSEE SIRENE) ---
+# Interroge l'API officielle pour vérifier l'existence légale de l'entreprise et son état administratif.
 
 def _check_insee_registry(records: list[SilverRecord]) -> list[InconsistencyAlert]:
     alerts = []
