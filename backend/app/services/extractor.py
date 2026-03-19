@@ -1,4 +1,9 @@
-"""Service d'extraction : extrait les informations clés via LLM."""
+"""
+Service d'extraction de données :
+Convertit le texte brut OCR en données structurées via LLM (Large Language Model).
+Gère la validation métier (SIREN/SIRET) et le formatage des montants.
+"""
+
 import logging
 import os
 import re
@@ -11,6 +16,9 @@ from ollama import Client as OllamaClient
 
 logger = logging.getLogger(__name__)
 
+# Prompt optimisé pour l'extraction de documents comptables français.
+# On force le format JSON et on précise les contraintes sur les SIREN/SIRET
+# pour éviter les erreurs de parsing classiques (espaces, tirets).
 EXTRACTION_PROMPT = """Tu es un expert comptable français spécialisé 
 dans l'analyse de documents administratifs.
 Extrait les informations clés du texte suivant.
@@ -42,6 +50,7 @@ Important :
 - SIRET = 14 chiffres UNIQUEMENT (sans espaces ni tirets)
 - Les montants doivent être des nombres décimaux (ex: 1500.00)
 """
+
 
 
 def extract_document_data(text: str) -> ExtractedData:
@@ -94,11 +103,12 @@ def _clean_numeric(value: str | None) -> Decimal | None:
 
 
 def _clean_siren(value: str | None) -> str | None:
-    """Garde uniquement les chiffres d'un SIREN/SIRET."""
+    """Garde uniquement les chiffres d'un SIREN/SIRET pour assurer la conformité avec le schéma Pydantic."""
     if value is None:
         return None
     digits = re.sub(r"\D", "", str(value))
     return digits if digits else None
+
 
 
 def _parse_extraction_response(raw: str, original_text: str) -> ExtractedData:

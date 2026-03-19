@@ -63,17 +63,20 @@ export function UploadPage() {
   
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Polling for documents not yet in final state
+  // Mécanisme de Polling : Rafraîchit la liste toutes les 3s 
+  // tant que des documents sont encore en cours de traitement (en dehors des états terminaux 'curated' ou 'error').
   useEffect(() => {
     const needsPolling = documents.some(
-      (d) => !['curated', 'error'].includes(d.status)
+      (d: DocumentResponse) => !['curated', 'error'].includes(d.status)
     );
+
 
     if (needsPolling) {
       const timer = setInterval(refreshDocuments, 3000);
       return () => clearInterval(timer);
     }
   }, [documents]);
+
 
   // Initial load
   useEffect(() => {
@@ -139,6 +142,10 @@ export function UploadPage() {
     setExtraction(null);
   };
 
+  /**
+   * Ouvre le document original dans un nouvel onglet.
+   * Utilise createObjectURL pour gérer le flux binaire de manière sécurisée.
+   */
   const openDocumentFile = async (doc: DocumentResponse) => {
     const popup = window.open('', '_blank');
     if (!popup) {
@@ -153,6 +160,7 @@ export function UploadPage() {
       const blob = await getDocumentFileBlob(doc.id);
       const blobUrl = URL.createObjectURL(blob);
       popup.location.href = blobUrl;
+      // Nettoyage de l'URL après 60 secondes pour libérer la mémoire.
       setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
     } catch (err) {
       console.error('Open document error:', err);
@@ -161,8 +169,8 @@ export function UploadPage() {
     }
   };
 
+
   const handleDelete = async (id: string) => {
-    //if (!confirm('Êtes-vous sûr de vouloir supprimer ce document à tous les niveaux ?')) return;
     try {
       await deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
@@ -170,6 +178,8 @@ export function UploadPage() {
       console.error('Delete error:', err);
     }
   };
+
+
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

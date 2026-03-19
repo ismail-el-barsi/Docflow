@@ -1,4 +1,9 @@
-"""Service OCR : conversion PDF → texte via pypdf (fallback) ou Tesseract."""
+"""
+Service OCR (Optical Character Recognition) :
+Responsable de la conversion des fichiers PDF et images en texte brut.
+Implémente une stratégie de fallback : pypdf (rapide/natif) -> Tesseract (OCR complet pour scans).
+"""
+
 
 import io
 import logging
@@ -25,13 +30,14 @@ class OcrResult:
 
 
 def _check_dependencies() -> list[str]:
-    """Vérifie si Poppler et Tesseract sont installés."""
+    """Vérifie la présence des binaires système requis (Poppler pour PDF-to-Image, Tesseract pour OCR)."""
     missing = []
     if not shutil.which("pdftoppm"):
         missing.append("poppler-utils (pdftoppm)")
     if not shutil.which("tesseract"):
         missing.append("tesseract-ocr")
     return missing
+
 
 
 def _ocr_with_tesseract(pdf_input: Path | bytes, lang: str = "fra") -> tuple[str, str | None]:
@@ -140,14 +146,15 @@ def extract_text_from_image_path(image_path: Path, lang: str = "fra") -> OcrResu
 
 def extract_text_from_file(file_path: Path, lang: str = "fra") -> OcrResult:
     """
-    Extrait le texte d'un fichier selon son type.
-    - PDF : pypdf + fallback Tesseract
-    - Images : Tesseract direct
+    Point d'entrée principal pour l'extraction de texte.
+    Détermine automatiquement la méthode (PDF natif, PDF scanné ou Image) selon l'extension.
     """
     ext = file_path.suffix.lower()
     if ext in {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}:
         logger.info("Fichier image detecté : %s", file_path.name)
         return extract_text_from_image_path(file_path, lang)
     
-    # Par défaut on traite comme un PDF (.pdf, .doc, etc.)
+    # Par défaut on traite comme un PDF (.pdf). 
+    # Les fichiers .doc/.docx ne sont pas nativement supportés ici (nécessiteraient pandoc/libreoffice).
     return extract_text_from_pdf_path(file_path, lang)
+
