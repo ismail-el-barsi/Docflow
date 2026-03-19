@@ -2,6 +2,12 @@
 
 DocFlow est une solution pour l'automatisation du traitement des documents administratifs (factures, devis, attestations). Le projet suit une architecture Data-Driven avec un pipeline de traitement intelligent.
 
+> [!NOTE]
+> Pour une analyse plus approfondie de l'architecture, consultez le [Document d'Architecture Technique (DAT)](./doc/DAT_DocFlow.md).
+
+## 🎥 Démonstration
+[![Démonstration Vidéo](https://img.shields.io/badge/Vidéo-Démonstration-red?style=for-the-badge&logo=youtube)](URL_DE_VOTRE_VIDEO_ICI)
+
 ## 🚀 Fonctionnalités implémentées
 
 ### 1. Upload multi-documents
@@ -15,8 +21,9 @@ DocFlow est une solution pour l'automatisation du traitement des documents admin
 - **Précision** : Modèle de prompt avec instructions strictes pour garantir un format JSON valide en sortie.
 
 ### 3. Extraction des informations clés (OCR)
-- **Couche Bas Niveau** : [Tesseract OCR](https://tesseract-ocr.github.io/) pour l'extraction du texte brut depuis les PDF.
-- **Intelligence d'extraction** : Le service `extractor.py` structure les données brutes :
+- **Support Multi-format** : Prise en charge des PDF (natifs ou scannés) et des images (`PNG`, `JPG`, `WEBP`, `TIFF`, etc.).
+- **Couche Bas Niveau** : [Tesseract OCR](https://tesseract-ocr.github.io/) avec fallback intelligent via `pypdf` pour les textes natifs.
+- **Intelligence d'extraction** : Le service `extractor.py` structure les données brutes via LLM (Groq ou Ollama) :
     - **Identifiants** : SIREN (9 chiffres), SIRET (14 chiffres).
     - **Finances** : Montants HT, TVA, TTC et devise.
     - **Métadonnées** : Dates d'émission, nom de l'émetteur et du destinataire.
@@ -30,9 +37,9 @@ Implémenté dans `fraud.py`, effectue une **analyse cross-documents** :
 
 ### 5. Architecture Medallion (Data Lake)
 Le stockage (`datalake.py`) est organisé en trois zones physiques :
-- **Zone Bronze (Raw)** : Stockage des PDF originaux et des manifestes bruts.
-- **Zone Silver (Clean)** : Données extraites par le LLM, normalisées et structurées en JSON.
-- **Zone Gold (Curated)** : Données enrichies des alertes de fraude et prêtes pour la consommation métier.
+- **Zone Bronze (Raw)** : Stockage des fichiers originaux (Local ou **Cloudinary**) et des manifestes bruts.
+- **Zone Silver (Clean)** : Données extraites par le LLM, normalisées et sauvegardées dans **MongoDB**.
+- **Zone Gold (Curated)** : Données enrichies des alertes de fraude, prêtes pour la consommation métier.
 
 ### 6. Intégration Métier (Front-ends)
 - **Dashboard Conformité** : Vue d'ensemble du taux de conformité, KPIs par sévérité et liste filtrable des alertes.
@@ -93,6 +100,10 @@ Créez un fichier `backend/.env` (basé sur `.env.example`) :
 | `LLM_PROVIDER` | `ollama` ou `groq` | `ollama` |
 | `GROQ_API_KEY` | Requis si provider = `groq` | - |
 | `OLLAMA_BASE_URL` | URL de votre instance Ollama | `http://host.docker.internal:11434` |
+| `CLOUDINARY_URL` | Alternatif aux clés séparées | - |
+| `CLOUDINARY_CLOUD_NAME` | Pour le stockage distant | - |
+| `CLOUDINARY_API_KEY` | - | - |
+| `CLOUDINARY_API_SECRET` | - | - |
 
 ---
 

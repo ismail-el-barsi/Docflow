@@ -12,7 +12,7 @@ DocFlow est une solution logicielle conçue pour automatiser l'ingestion, l'extr
 *   **Backend :** Python 3.12+ avec le framework **FastAPI** (Haute performance, asynchrone).
 *   **Traitement Documentaire :**
     *   `PyPDF` : Extraction native de texte.
-    *   `Tesseract OCR` & `pdf2image` : Fallback pour les documents scannés.
+    *   `Tesseract OCR` & `pdf2image` : Fallback pour les documents scannés et les images (`PNG`, `JPG`, etc.).
 *   **Intelligence Artificielle :** Intégration de LLM (via Groq ou Ollama) pour la classification `backend/app/services/classifier.py` et l'extraction structurée `backend/app/services/extractor.py`.
 *   **Base de Données :** **MongoDB** (Stockage orienté documents), utilisé via `Motor` (driver asynchrone).
 *   **Sécurité :** JWT (JSON Web Tokens) pour l'authentification et Bcrypt pour le hachage des mots de passe.
@@ -27,7 +27,7 @@ Le projet suit un pattern de type **Layered / Clean Architecture**, isolant les 
 *   **API Layer (`app/api/`) :** Gère les points d'entrée (routes), la validation des requêtes et les réponses HTTP.
 *   **Service Layer (`app/services/`) :** Contient la logique métier. Le `backend/app/services/pipeline.py` orchestre le passage d'une zone de données à l'autre.
 *   **Data Models (`app/schemas/`) :** Définition des contrats de données via `Pydantic`, assurant une validation stricte à chaque étape.
-*   **Storage Layer (`app/storage/`) :** Abstraction de l'accès au Data Lake physique et à MongoDB.
+*   **Storage Layer (`app/storage/`) :** Abstraction de l'accès au Data Lake physique. Support du stockage **Local** (Volume Docker) et du stockage **Cloud (`Cloudinary`)** pour la Zone Bronze.
 
 ---
 
@@ -46,7 +46,7 @@ Le stockage est organisé selon le concept de zones (Bronze, Silver, Gold). Voic
 ### Cycle de vie d'une requête (Upload & Process)
 1.  Le client envoie un fichier via `POST /api/documents/upload`.
 2.  Le middleware d'authentification `backend/app/api/auth.py` valide le JWT.
-3.  Le fichier est écrit sur disque (`storage/bronze`) et un enregistrement `BronzeRecord` `backend/app/schemas/datalake.py` est créé.
+3.  Le fichier est écrit sur disque (`storage/bronze`) ou uploadé sur **Cloudinary**, et un enregistrement `BronzeRecord` `backend/app/schemas/datalake.py` est créé dans MongoDB.
 4.  Une **Background Task** est lancée via FastAPI pour ne pas bloquer le client.
 5.  Le pipeline `backend/app/services/pipeline.py` effectue l'OCR -> Classification -> Extraction.
 6.  Les données sont croisées pour vérification `backend/app/services/pipeline.py`.
@@ -78,4 +78,6 @@ La stratégie de déploiement repose sur la conteneurisation complète.
 *   **Dockerisation :** 
     *   Un `backend/Dockerfile` (multi-stage) pour le backend incluant les dépendances OS (`tesseract-ocr`, `poppler-utils`).
     *   Un `docker-compose.yml` orchestrant le backend, la base MongoDB et l'UI.
-*   **Orchestration :** L'utilisation d'**Airflow** (`airflow/dags/`) permet de surveiller les conteneurs et d'orchestrer d'éventuels traitements massifs de données en dehors de l'API synchrone.
+*   **Orchestration :** L'utilisation d'**Airflow** (`airflow/dags/`) permet de surveiller les conteneurs et d'orchestrer les flux de données.
+    *   `monitor_containers.py` : Surveillance de la vitalité des services (Backend, DB...).
+    *   `generate_real_documents.py` : DAG d'injection de données de test pour simulation.
