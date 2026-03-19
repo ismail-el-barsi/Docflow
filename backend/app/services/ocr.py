@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from pdf2image import convert_from_bytes, convert_from_path
+from PIL import Image
 from pypdf import PdfReader
 from pytesseract import image_to_string
 
@@ -118,3 +119,35 @@ def extract_text_from_bytes(pdf_bytes: bytes, lang: str = "fra") -> OcrResult:
     except Exception as exc:
         logger.error("Erreur lors de l'extraction de texte PDF via bytes : %s", exc)
         return OcrResult(text="", page_count=0, success=False, error=str(exc))
+
+
+def extract_text_from_image_path(image_path: Path, lang: str = "fra") -> OcrResult:
+    """Extrait le texte d'un fichier image via Tesseract."""
+    if not shutil.which("tesseract"):
+        err_msg = "tesseract-ocr manquant pour l'extraction d'image."
+        logger.error(err_msg)
+        return OcrResult(text="", page_count=0, success=False, error=err_msg)
+
+    try:
+        img = Image.open(str(image_path))
+        text = image_to_string(img, lang=lang)
+        return OcrResult(text=text.strip(), page_count=1)
+    except Exception as exc:
+        err_msg = f"Erreur lors de l'OCR Tesseract sur image : {exc}"
+        logger.error(err_msg)
+        return OcrResult(text="", page_count=0, success=False, error=err_msg)
+
+
+def extract_text_from_file(file_path: Path, lang: str = "fra") -> OcrResult:
+    """
+    Extrait le texte d'un fichier selon son type.
+    - PDF : pypdf + fallback Tesseract
+    - Images : Tesseract direct
+    """
+    ext = file_path.suffix.lower()
+    if ext in {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}:
+        logger.info("Fichier image detecté : %s", file_path.name)
+        return extract_text_from_image_path(file_path, lang)
+    
+    # Par défaut on traite comme un PDF (.pdf, .doc, etc.)
+    return extract_text_from_pdf_path(file_path, lang)
