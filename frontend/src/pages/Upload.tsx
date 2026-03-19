@@ -142,7 +142,6 @@ export function UploadPage() {
       setDocuments((prev) => prev.filter((d) => d.id !== id));
     } catch (err) {
       console.error('Delete error:', err);
-      alert('Erreur lors de la suppression');
     }
   };
 
@@ -161,35 +160,6 @@ export function UploadPage() {
         <h1>Traitement de Documents</h1>
         <p>Uploadez vos pièces comptables — elles seront classifiées, extraites et analysées automatiquement.</p>
       </div>
-
-      {uploadError && (
-        <div
-          className="card animate-slide-up"
-          style={{
-            marginBottom: '1rem',
-            borderColor: 'rgba(255,77,109,0.4)',
-            background: 'rgba(255,77,109,0.08)',
-            position: 'relative',
-            paddingRight: '3rem',
-          }}
-          role="alert"
-        >
-          <button
-            className="modal-close"
-            onClick={() => setUploadError(null)}
-            style={{ position: 'absolute', top: '0.6rem', right: '0.9rem', fontSize: '1.2rem' }}
-            aria-label="Fermer l'alerte"
-          >
-            &times;
-          </button>
-          <p style={{ color: 'var(--color-danger)', fontWeight: 700, marginBottom: '0.2rem' }}>
-            Erreur d'upload
-          </p>
-          <p className="text-sm" style={{ color: 'var(--color-text)' }}>
-            {uploadError}
-          </p>
-        </div>
-      )}
 
       {/* Drop Zone */}
       <div
@@ -239,6 +209,33 @@ export function UploadPage() {
       </div>
 
       {/* Upload feedback */}
+      {uploadError && (
+        <div
+          className="card animate-slide-up mb-4"
+          style={{
+            borderColor: 'rgba(255,77,109,0.45)',
+            background: 'rgba(255,77,109,0.08)',
+            position: 'relative',
+            paddingRight: '3rem',
+          }}
+          role="alert"
+        >
+          <button
+            className="modal-close card-dismiss"
+            onClick={() => setUploadError(null)}
+            aria-label="Fermer l'alerte"
+          >
+            &times;
+          </button>
+          <p className="section-title" style={{ color: 'var(--color-danger)' }}>
+            ❌ Erreur de traitement
+          </p>
+          <p className="text-sm mt-2" style={{ color: 'var(--color-danger)' }}>
+            {uploadError}
+          </p>
+        </div>
+      )}
+
       {uploadedFiles.length > 0 && (
         <div className="card card-success animate-slide-up mb-4">
           <button 
@@ -296,9 +293,14 @@ export function UploadPage() {
               {documents.sort((a, b) => new Date(b.upload_at).getTime() - new Date(a.upload_at).getTime()).map((doc) => (
                 <tr key={doc.id}>
                   <td>
-                    <div className="flex-col">
+                    <div className="flex flex-col" style={{ gap: '0.1rem', lineHeight: 1.2 }}>
                       <span style={{ fontWeight: 600 }}>{doc.original_filename}</span>
                       <span className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(doc.upload_at).toLocaleString('fr-FR')}</span>
+                      {doc.status === 'error' && doc.error_message && (
+                        <span className="text-sm" style={{ color: 'var(--color-danger)' }}>
+                          {doc.error_message}
+                        </span>
+                      )}
                     </div>
                   </td>
                   {isAdmin && (
@@ -331,15 +333,6 @@ export function UploadPage() {
                   </td>
                   <td>
                     <div className="flex gap-1">
-                      {doc.status === 'error' && doc.error_message && (
-                        <button
-                          className="btn btn-ghost"
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--color-danger)' }}
-                          onClick={() => setUploadError(doc.error_message)}
-                        >
-                          ⚠️ Détail
-                        </button>
-                      )}
                       <button 
                         className="btn btn-ghost btn-xs" 
                         disabled={!['extracted', 'curated'].includes(doc.status)}
