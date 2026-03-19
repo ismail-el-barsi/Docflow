@@ -6,7 +6,11 @@ DocFlow est une solution pour l'automatisation du traitement des documents admin
 > Pour une analyse plus approfondie de l'architecture, consultez le [Document d'Architecture Technique (DAT)](./doc/DAT_DocFlow.md).
 
 ## 🎥 Démonstration
-[![Démonstration Vidéo](https://img.shields.io/badge/Vidéo-Démonstration-red?style=for-the-badge&logo=youtube)](URL_DE_VOTRE_VIDEO_ICI)
+[![Démonstration Vidéo](https://img.shields.io/badge/Vidéo-Démonstration-red?style=for-the-badge&logo=youtube)](https://drive.google.com/file/d/1I3QVdy2No4Ftgfim0mQBZe4n8ZmwpcwN/view?usp=sharing)
+
+<video src="./demo_docflow.mp4" controls width="640" preload="metadata">
+    Votre navigateur ne supporte pas la lecture vidéo intégrée.
+</video>
 
 ## 🚀 Fonctionnalités implémentées
 
