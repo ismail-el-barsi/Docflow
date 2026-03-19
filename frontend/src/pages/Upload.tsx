@@ -5,6 +5,7 @@ import {
   getExtraction,
   deleteDocument,
   getApiErrorMessage,
+  getDocumentFileBlob,
 } from '../api/client';
 import type { DocumentResponse, ExtractionResult } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -53,6 +54,7 @@ export function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [lastUploadStorage, setLastUploadStorage] = useState<'cloudinary' | 'local' | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<DocumentResponse | null>(null);
@@ -90,6 +92,7 @@ export function UploadPage() {
     try {
       const result = await uploadDocuments(candidateFiles);
       setUploadedFiles(result.map((d) => d.original_filename));
+      setLastUploadStorage(result.some((d) => Boolean(d.cloudinary_url)) ? 'cloudinary' : 'local');
       await refreshDocuments();
     } catch (err) {
       console.error('Upload error:', err);
@@ -119,6 +122,7 @@ export function UploadPage() {
   const openDetails = async (doc: DocumentResponse) => {
     if (!['extracted', 'curated'].includes(doc.status)) return;
     setSelectedDoc(doc);
+    setExtraction(null);
     setLoadingExtraction(true);
     try {
       const result = await getExtraction(doc.id);
@@ -133,6 +137,28 @@ export function UploadPage() {
   const closeDetails = () => {
     setSelectedDoc(null);
     setExtraction(null);
+  };
+
+  const openDocumentFile = async (doc: DocumentResponse) => {
+    const popup = window.open('', '_blank');
+    if (!popup) {
+      alert('Popup bloquée. Autorisez les popups pour ouvrir le document.');
+      return;
+    }
+
+    popup.document.title = 'Chargement du document...';
+    popup.document.body.innerHTML = '<p style="font-family: sans-serif; padding: 1rem;">Chargement du document...</p>';
+
+    try {
+      const blob = await getDocumentFileBlob(doc.id);
+      const blobUrl = URL.createObjectURL(blob);
+      popup.location.href = blobUrl;
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (err) {
+      console.error('Open document error:', err);
+      popup.close();
+      alert(getApiErrorMessage(err, 'Impossible d\'ouvrir le document'));
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -189,7 +215,7 @@ export function UploadPage() {
           <>
             <span className="drop-zone-icon">⏳</span>
             <h2 className="loading-text">Upload en cours…</h2>
-            <p>Vos fichiers sont en cours de transfert vers la zone Bronze</p>
+            <p>Vos fichiers sont en cours de transfert vers le stockage sécurisé</p>
             <div className="progress-bar center">
               <div className="progress-fill" style={{ width: '100%' }} />
             </div>
@@ -256,8 +282,9 @@ export function UploadPage() {
           </div>
           
           <p className="text-sm text-muted mt-2">
-            Les fichiers sont maintenant en sécurité dans les différentes zones de traitement
-            (Bronze, Silver & Gold).
+            {lastUploadStorage === 'cloudinary'
+              ? 'Les fichiers sont stockés sur Cloudinary, puis traités dans le pipeline Bronze, Silver et Gold.'
+              : 'Les fichiers sont stockés localement, puis traités dans le pipeline Bronze, Silver et Gold.'}
           </p>
         </div>
       )}
@@ -366,7 +393,16 @@ export function UploadPage() {
                 </span>
                 <h2 className="text-lg font-bold">{selectedDoc.original_filename}</h2>
               </div>
-              <button className="modal-close" onClick={closeDetails}>&times;</button>
+              <div className="flex items-center gap-1">
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}
+                  onClick={() => openDocumentFile(selectedDoc)}
+                >
+                  ↗ Ouvrir le document
+                </button>
+                <button className="modal-close" onClick={closeDetails}>&times;</button>
+              </div>
             </div>
             {isAdmin && (
               <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: '2rem', background: 'rgba(255,255,255,0.02)' }}>

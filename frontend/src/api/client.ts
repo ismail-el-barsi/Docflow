@@ -167,6 +167,13 @@ export async function getExtraction(id: string): Promise<ExtractionResult> {
   return res.data;
 }
 
+export async function getDocumentFileBlob(id: string): Promise<Blob> {
+  const res = await api.get(`/api/documents/${id}/file`, {
+    responseType: 'blob',
+  });
+  return res.data as Blob;
+}
+
 export async function deleteDocument(id: string): Promise<void> {
   await api.delete(`/api/documents/${id}`);
 }

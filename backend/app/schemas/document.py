@@ -26,6 +26,8 @@ class UploadedDocument(BaseModel):
     original_filename: str
     file_size: int
     mime_type: str = "application/pdf"
+    cloudinary_url: str | None = None
+    cloudinary_public_id: str | None = None
     upload_at: datetime = Field(default_factory=datetime.utcnow)
     status: ProcessingStatus = ProcessingStatus.UPLOADED
     error_message: str | None = None
@@ -39,6 +41,8 @@ class DocumentResponse(BaseModel):
     original_filename: str
     status: ProcessingStatus
     document_type: DocumentType | None = None
+    mime_type: str | None = None
+    cloudinary_url: str | None = None
     upload_at: datetime
     error_message: str | None = None
     uploaded_by: str | None = None

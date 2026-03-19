@@ -32,6 +32,8 @@ export interface DocumentResponse {
   original_filename: string;
   status: ProcessingStatus;
   document_type: DocumentType | null;
+  mime_type: string | null;
+  cloudinary_url: string | null;
   upload_at: string;
   error_message: string | null;
   uploaded_by: string | null;
