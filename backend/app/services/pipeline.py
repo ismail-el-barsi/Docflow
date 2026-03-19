@@ -9,7 +9,7 @@ from app.schemas.document import UploadedDocument
 from app.schemas.fraud import InconsistencyAlert
 from app.services import classifier, extractor
 from app.services.fraud import detect_inconsistencies
-from app.services.ocr import extract_text_from_pdf_path
+from app.services.ocr import extract_text_from_file
 from app.storage import datalake
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ def process_document(document: UploadedDocument, file_path: Path) -> SilverRecor
     """
     # OCR
     logger.info("Démarrage OCR : %s", document.original_filename)
-    ocr_result = extract_text_from_pdf_path(file_path)
+    ocr_result = extract_text_from_file(file_path)
 
     if not ocr_result.success:
         logger.error("Échec OCR pour %s : %s", document.original_filename, ocr_result.error)
