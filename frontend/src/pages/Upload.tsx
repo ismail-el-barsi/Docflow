@@ -78,7 +78,7 @@ export function UploadPage() {
     refreshDocuments();
   }, []);
 
-  const handleFiles = async (files: FileList) => {
+  const handleFiles = async (files: FileList | File[]) => {
     const candidateFiles = Array.from(files).filter(isAcceptedUploadFile);
     if (candidateFiles.length === 0) {
       setUploadError('Format non supporté. Merci d\'envoyer des PDF, DOC/DOCX ou images.');
@@ -206,7 +206,13 @@ export function UploadPage() {
           multiple
           accept={INPUT_ACCEPT}
           style={{ display: 'none' }}
-          onChange={(e) => e.target.files && handleFiles(e.target.files)}
+          onChange={(e) => {
+            if (e.target.files) {
+              void handleFiles(e.target.files);
+            }
+            // Permet de re-sélectionner le même fichier et de retrigger l'événement.
+            e.target.value = '';
+          }}
         />
 
         {uploading ? (
@@ -221,8 +227,8 @@ export function UploadPage() {
         ) : (
           <>
             <span className="drop-zone-icon">☁️</span>
-            <h2>Déposez vos PDF ici</h2>
-            <p>ou cliquez pour sélectionner — Formats acceptés : PDF uniquement</p>
+            <h2>Déposez vos fichiers ici</h2>
+            <p>ou cliquez pour sélectionner plusieurs fichiers — Formats acceptés : PDF, DOC, DOCX, images</p>
             <div className="mt-5">
               <button id="upload-btn" className="btn btn-primary">
                 📂 Choisir des fichiers
